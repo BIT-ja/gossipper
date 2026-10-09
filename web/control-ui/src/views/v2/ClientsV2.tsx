@@ -102,7 +102,7 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
   }
 
   const onDelete = (row: ClientProfile) => {
-    if (!window.confirm(`Delete client profile "${row.id}"?`)) return
+    if (!window.confirm(`删除客户端配置 "${row.id}"?`)) return
     void run(async () => {
       await deleteClient(row.id, { bearer })
       await refresh()
@@ -129,13 +129,13 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
   const onStart = (row: ClientProfile) => {
     const block = isProfilePortBlocked('client', row.id, servers, rows)
     if (block.blocked) {
-      toast(`Port conflict: ${block.details.join(', ')}`, 'error')
+      toast(`端口冲突： ${block.details.join(', ')}`, 'error')
       return
     }
     void run(async () => {
       try {
         await startClientProfile(row.id, { bearer })
-        toast('Job started', 'success')
+        toast("任务已启动", 'success')
       } catch (err) {
         console.warn('start:', err)
       } finally {
@@ -168,23 +168,23 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
             {conflicts.conflicting.has(`client:${r.id}`) ? (
               <span
                 className="bg-destructive/15 text-destructive rounded px-1 py-0.5 font-mono text-[9px] uppercase"
-                title={`Port conflict: ${(conflicts.details.get(`client:${r.id}`) ?? []).join(', ')}`}
+                title={`端口冲突： ${(conflicts.details.get(`client:${r.id}`) ?? []).join(', ')}`}
               >
-                ⚠ port
+                端口冲突
               </span>
             ) : null}
           </span>
         ),
       },
-      { key: 'name', header: 'Name', render: (r) => r.name },
+      { key: 'name', header: "名称", render: (r) => r.name },
       {
         key: 'status',
-        header: 'Status',
+        header: "状态",
         render: (r) => <RuntimeBadge runtime={r.runtime} />,
       },
       {
         key: 'target',
-        header: 'Target',
+        header: "目标",
         render: (r) =>
           r.remote_ip ? (
             <code className="text-xs">
@@ -196,16 +196,16 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
       },
       {
         key: 'load',
-        header: 'Load',
+        header: "负载",
         render: (r) => (
           <span className="font-mono text-xs">
-            {r.rate ?? 0} cps · {r.max_concurrent ?? 0} max
+            {r.rate ?? 0} cps · {r.max_concurrent ?? 0} 最大值
           </span>
         ),
       },
       {
         key: 'scenario',
-        header: 'Scenario',
+        header: "场景",
         render: (r) => (r.scenario_ref ? <code className="text-xs">{r.scenario_ref}</code> : '—'),
       },
       {
@@ -215,7 +215,7 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
         render: (r) => {
           const builtin = r.source === 'built-in'
           const title = builtin
-            ? 'Built-in profile (seeded from management config) — runs inside the master process. Restart the service to change settings.'
+            ? '内置配置在主进程中运行，修改后需要重启服务。'
             : undefined
           const portBlock = isProfilePortBlocked('client', r.id, servers, rows)
           return (
@@ -228,11 +228,11 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
                 disabled={busy || builtin || portBlock.blocked}
                 title={
                   portBlock.blocked
-                    ? `Port conflict: ${portBlock.details.join(', ')}`
+                    ? `端口冲突： ${portBlock.details.join(', ')}`
                     : title
                 }
               >
-                Start
+                启动
               </Button>
               <Button
                 type="button"
@@ -242,7 +242,7 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
                 disabled={busy || builtin}
                 title={title}
               >
-                Stop
+                停止
               </Button>
               <Button
                 type="button"
@@ -253,10 +253,10 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
                   setCreateMode(false)
                 }}
               >
-                Edit
+                编辑
               </Button>
               <Button type="button" variant="outline" size="xs" onClick={() => onDuplicate(r)}>
-                Duplicate
+                复制
               </Button>
               <Button
                 type="button"
@@ -266,7 +266,7 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
                 disabled={builtin}
                 title={title}
               >
-                Delete
+                删除
               </Button>
             </div>
           )
@@ -280,14 +280,14 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Client profiles (UAC)</h2>
+          <h2 className="text-sm font-semibold">客户端配置（UAC）</h2>
           <p className="text-muted-foreground text-xs">
-            Templates used by Jobs to launch load-test runs. Stored in <code>profiles/clients/&lt;id&gt;.json</code>.
+            供任务启动压测使用的配置模板，存储于 <code>profiles/clients/&lt;id&gt;.json</code>.
           </p>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => void run(() => refresh())}>
-            Refresh
+            刷新
           </Button>
           <Button
             type="button"
@@ -297,7 +297,7 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
               setCreateMode(true)
             }}
           >
-            + New client profile
+            + 新建客户端配置
           </Button>
         </div>
       </div>
@@ -310,9 +310,8 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
 
       {conflicts.conflicting.size > 0 ? (
         <div className="border-warning/40 bg-warning/10 text-warning-foreground rounded-md border px-3 py-2 text-xs">
-          <span className="font-medium">Local-bind conflict:</span>{' '}
-          {conflicts.conflicting.size} client profile{conflicts.conflicting.size > 1 ? 's' : ''} reuse the same local
-          (family/port) bind. Concurrent runs will fail on bind(2). Affected:{' '}
+          <span className="font-medium">本地端口冲突：</span>{' '}
+          {conflicts.conflicting.size} 个客户端配置{conflicts.conflicting.size > 1 ? 's' : ''} 使用相同本地地址族/端口，同时运行将导致绑定失败。涉及：{' '}
           <code>{Array.from(conflicts.conflicting).join(', ')}</code>
         </div>
       ) : null}
@@ -322,21 +321,21 @@ export function ClientsV2({ bearer, busy, run, errorText }: ClientsV2Props) {
         columns={columns}
         rowKey={(r) => r.id}
         loading={busy && rows.length === 0}
-        empty="No client profiles yet — create one above."
+        empty="暂无客户端配置，请点击上方按钮创建。"
       />
 
       <Modal
         open={draft !== null}
         onClose={() => setDraft(null)}
         size="lg"
-        title={createMode ? 'New client profile' : `Edit client profile · ${draft?.id ?? ''}`}
+        title={createMode ? "新建客户端配置" : `编辑客户端配置 · ${draft?.id ?? ''}`}
         footer={
           <>
             <Button type="button" variant="outline" size="sm" onClick={() => setDraft(null)}>
-              Cancel
+              取消
             </Button>
             <Button type="button" size="sm" onClick={onSave} disabled={busy}>
-              {createMode ? 'Create' : 'Save'}
+              {createMode ? "创建" : "保存"}
             </Button>
           </>
         }
@@ -384,7 +383,7 @@ function ClientForm({
           />
         </div>
         <div>
-          <Label className="text-xs">Name</Label>
+          <Label className="text-xs">名称</Label>
           <Input
             value={value.name}
             onChange={(e) => set('name', e.target.value)}
@@ -395,7 +394,7 @@ function ClientForm({
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div>
-          <Label className="text-xs">Remote IP</Label>
+          <Label className="text-xs">目标 IP</Label>
           <Input
             value={value.remote_ip ?? ''}
             onChange={(e) => set('remote_ip', e.target.value)}
@@ -404,7 +403,7 @@ function ClientForm({
           />
         </div>
         <div>
-          <Label className="text-xs">Remote port</Label>
+          <Label className="text-xs">目标端口</Label>
           <Input
             type="number"
             value={value.remote_port ?? 0}
@@ -413,7 +412,7 @@ function ClientForm({
           />
         </div>
         <div>
-          <Label className="text-xs">Scenario</Label>
+          <Label className="text-xs">场景</Label>
           <ScenarioSelect
             value={value.scenario_ref ?? ''}
             onChange={(id) => set('scenario_ref', id || undefined)}
@@ -430,7 +429,7 @@ function ClientForm({
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div>
-          <Label className="text-xs">Rate (cps)</Label>
+          <Label className="text-xs">呼叫速率（CPS）</Label>
           <Input
             type="number"
             value={value.rate ?? 0}
@@ -439,7 +438,7 @@ function ClientForm({
           />
         </div>
         <div>
-          <Label className="text-xs">Max concurrent</Label>
+          <Label className="text-xs">最大并发通话数</Label>
           <Input
             type="number"
             value={value.max_concurrent ?? 0}
@@ -448,7 +447,7 @@ function ClientForm({
           />
         </div>
         <div>
-          <Label className="text-xs">Duration (ms, 0 = ∞)</Label>
+          <Label className="text-xs">持续时间（毫秒，0 表示不限）</Label>
           <Input
             type="number"
             value={value.duration_ms ?? 0}
@@ -458,13 +457,13 @@ function ClientForm({
         </div>
       </div>
       <div>
-        <Label className="text-xs">Local binds</Label>
+        <Label className="text-xs">本地监听地址</Label>
         <div className="mt-1">
           <TransportListEditor value={value.transports ?? []} onChange={setTransports} defaultPort={0} />
         </div>
       </div>
       <div>
-        <Label className="text-xs">Notes</Label>
+        <Label className="text-xs">备注</Label>
         <Textarea
           value={value.notes ?? ''}
           onChange={(e) => set('notes', e.target.value)}

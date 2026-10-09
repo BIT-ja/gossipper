@@ -46,7 +46,7 @@ export function PrepToolsPanel({ bearer, run, compact }: PrepToolsPanelProps) {
     try {
       args = JSON.parse(runDraft.argsText) as Record<string, unknown>
       if (args === null || typeof args !== 'object' || Array.isArray(args)) {
-        throw new Error('args must be a JSON object')
+        throw new Error('参数必须是 JSON 对象')
       }
     } catch (err) {
       setArgsError(String(err instanceof Error ? err.message : err))
@@ -66,10 +66,10 @@ export function PrepToolsPanel({ bearer, run, compact }: PrepToolsPanelProps) {
   return (
     <section className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
       <div>
-        <h3 className="text-sm font-medium">Scenario prep</h3>
+        <h3 className="text-sm font-medium">场景准备</h3>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          PCAP → XML and CSV index utilities. Outputs land under{' '}
-          <code className="text-[11px]">artifacts/jobs/&lt;id&gt;/</code> when run as jobs.
+          PCAP 转 XML 与 CSV 索引工具，输出目录为{' '}
+          <code className="text-[11px]">artifacts/jobs/&lt;id&gt;/</code> （以任务方式运行时）。
         </p>
       </div>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -83,12 +83,12 @@ export function PrepToolsPanel({ bearer, run, compact }: PrepToolsPanelProps) {
               <pre className="bg-muted overflow-x-auto rounded-md p-2 text-[10px]">{tool.cli}</pre>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" size="sm" onClick={() => openRun(tool)}>
-                  Run as job
+                  作为任务运行
                 </Button>
                 {tool.docsPath ? (
                   <Button type="button" size="sm" variant="ghost" asChild>
                     <a href={tool.docsPath} target="_blank" rel="noreferrer noopener">
-                      Docs
+                      文档
                     </a>
                   </Button>
                 ) : null}
@@ -98,11 +98,11 @@ export function PrepToolsPanel({ bearer, run, compact }: PrepToolsPanelProps) {
         ))}
       </div>
 
-      <Modal open={runDraft !== null} onClose={() => setRunDraft(null)} title={runDraft?.entry.title ?? 'Prep tool'}>
+      <Modal open={runDraft !== null} onClose={() => setRunDraft(null)} title={runDraft?.entry.title ?? '准备工具'}>
         {runDraft ? (
           <div className="flex flex-col gap-3 text-xs">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="prep-job-id">Job ID (optional)</Label>
+              <Label htmlFor="prep-job-id">任务 ID（可选）</Label>
               <Input
                 id="prep-job-id"
                 value={runDraft.jobId}
@@ -110,7 +110,7 @@ export function PrepToolsPanel({ bearer, run, compact }: PrepToolsPanelProps) {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="prep-args">Args (JSON, paths relative to data-dir)</Label>
+              <Label htmlFor="prep-args">参数（JSON，路径相对于数据目录）</Label>
               <textarea
                 id="prep-args"
                 className="border-input bg-background min-h-[120px] w-full rounded-md border px-3 py-2 font-mono text-[11px]"
@@ -121,10 +121,10 @@ export function PrepToolsPanel({ bearer, run, compact }: PrepToolsPanelProps) {
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setRunDraft(null)}>
-                Cancel
+                取消
               </Button>
               <Button type="button" size="sm" onClick={onSubmit}>
-                Start job
+                启动任务
               </Button>
             </div>
           </div>

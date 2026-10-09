@@ -78,7 +78,7 @@ func (e *Engine) runClientSharedWSCommon(ctx context.Context, scheme string, tls
 		go func(callNumber int) {
 			defer wg.Done()
 			defer e.sem.Release()
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			inbox := registry.register(callID)
 			defer registry.unregister(callID)
 			receive := func(waitCtx context.Context) (*sip.Message, error) {
@@ -148,7 +148,7 @@ func (e *Engine) runClientPerCallWSCommon(ctx context.Context, scheme string, tl
 				return
 			}
 			defer conn.Close()
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			localPort := conn.LocalPort()
 			localIP := resolveLocalIP(localPort, e.cfg.LocalIP, e.cfg.RemoteHost, e.cfg.RemotePort)
 			inboxCh := conn.Receive()

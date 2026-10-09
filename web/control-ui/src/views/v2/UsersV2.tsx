@@ -1,3 +1,5 @@
+import { formatTimestamp } from '@/lib/time'
+import { displayLabel } from '@/lib/displayLabel'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { createUser, deleteUser, listUsers, updateUser, type User } from '@/api/v2'
@@ -52,7 +54,7 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
         { bearer },
       )
       setCreateDraft(null)
-      toast('User created', 'success')
+      toast('用户已创建', 'success')
       await refresh()
     })
   }
@@ -66,16 +68,16 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
         { bearer },
       )
       setEditDraft(null)
-      toast('User updated', 'success')
+      toast('用户已更新', 'success')
       await refresh()
     })
   }
 
   const onDelete = (u: User) => {
-    if (!window.confirm(`Delete user "${u.username}"?`)) return
+    if (!window.confirm(`删除用户 "${u.username}"?`)) return
     void run(async () => {
       await deleteUser(u.id, { bearer })
-      toast('User deleted', 'success')
+      toast('用户已删除', 'success')
       await refresh()
     })
   }
@@ -83,9 +85,9 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
   const columns: Column<User>[] = useMemo(
     () => [
       { key: 'id', header: 'ID', render: (r) => <code className="text-xs">{r.id}</code> },
-      { key: 'username', header: 'Username', render: (r) => r.username },
-      { key: 'role', header: 'Role', render: (r) => r.role || '—' },
-      { key: 'created', header: 'Created', render: (r) => new Date(r.created_at).toLocaleString() },
+      { key: 'username', header: "用户名", render: (r) => r.username },
+      { key: 'role', header: "角色", render: (r) => displayLabel(r.role) },
+      { key: 'created', header: "创建时间", render: (r) => formatTimestamp(r.created_at) },
       {
         key: 'actions',
         header: '',
@@ -98,10 +100,10 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
               size="xs"
               onClick={() => setEditDraft({ id: r.id, username: r.username, password: '', role: r.role || 'admin' })}
             >
-              Edit
+              编辑
             </Button>
             <Button type="button" variant="destructive" size="xs" onClick={() => onDelete(r)}>
-              Delete
+              删除
             </Button>
           </div>
         ),
@@ -114,12 +116,11 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Users</CardTitle>
+          <CardTitle>用户</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-xs">
-            User management requires <code>auth.type: internal</code>. The server reported the users
-            API as disabled.
+            用户管理需要 <code>auth.type: internal</code>。服务器当前未启用用户管理接口。
           </p>
         </CardContent>
       </Card>
@@ -130,22 +131,22 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Users</h2>
+          <h2 className="text-sm font-semibold">用户</h2>
           <p className="text-muted-foreground text-xs">
-            Admin accounts that can sign in to the console (<code>users</code> table in{' '}
-            <code>settings.sqlite</code>). Audit entries are on the <strong>Audit</strong> page.
+            可登录控制台的管理账号（<code>users</code> 表，存储于{' '}
+            <code>settings.sqlite</code>）。审计记录可在 <strong>审计</strong> 页面查看。
           </p>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => void run(() => refresh())}>
-            Refresh
+            刷新
           </Button>
           <Button
             type="button"
             size="sm"
             onClick={() => setCreateDraft({ username: '', password: '', role: 'admin' })}
           >
-            + New user
+            + 新建用户
           </Button>
         </div>
       </div>
@@ -161,21 +162,21 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
         columns={columns}
         rowKey={(r) => String(r.id)}
         loading={busy && users.length === 0}
-        empty="No users yet."
+        empty="暂无用户。"
       />
 
       <Modal
         open={createDraft !== null}
         onClose={() => setCreateDraft(null)}
         size="sm"
-        title="New user"
+        title="新建用户"
         footer={
           <>
             <Button type="button" variant="outline" size="sm" onClick={() => setCreateDraft(null)}>
-              Cancel
+              取消
             </Button>
             <Button type="button" size="sm" onClick={onCreate} disabled={busy}>
-              Create
+              创建
             </Button>
           </>
         }
@@ -183,7 +184,7 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
         {createDraft ? (
           <div className="flex flex-col gap-3">
             <div>
-              <Label className="text-xs">Username</Label>
+              <Label className="text-xs">用户名</Label>
               <Input
                 value={createDraft.username}
                 onChange={(e) => setCreateDraft({ ...createDraft, username: e.target.value })}
@@ -191,7 +192,7 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
               />
             </div>
             <div>
-              <Label className="text-xs">Password (min 8 chars)</Label>
+              <Label className="text-xs">密码（至少 8 个字符）</Label>
               <Input
                 type="password"
                 value={createDraft.password}
@@ -200,7 +201,7 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
               />
             </div>
             <div>
-              <Label className="text-xs">Role</Label>
+              <Label className="text-xs">角色</Label>
               <Input
                 value={createDraft.role}
                 onChange={(e) => setCreateDraft({ ...createDraft, role: e.target.value })}
@@ -216,14 +217,14 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
         open={editDraft !== null}
         onClose={() => setEditDraft(null)}
         size="sm"
-        title={editDraft ? `Edit ${editDraft.username}` : 'Edit'}
+        title={editDraft ? `编辑 ${editDraft.username}` : 'Edit'}
         footer={
           <>
             <Button type="button" variant="outline" size="sm" onClick={() => setEditDraft(null)}>
-              Cancel
+              取消
             </Button>
             <Button type="button" size="sm" onClick={onSaveEdit} disabled={busy}>
-              Save
+              保存
             </Button>
           </>
         }
@@ -231,17 +232,17 @@ export function UsersV2({ bearer, busy, run, errorText }: UsersV2Props) {
         {editDraft ? (
           <div className="flex flex-col gap-3">
             <div>
-              <Label className="text-xs">New password (leave blank to keep)</Label>
+              <Label className="text-xs">新密码（留空表示不修改）</Label>
               <Input
                 type="password"
                 value={editDraft.password}
                 onChange={(e) => setEditDraft({ ...editDraft, password: e.target.value })}
                 className="mt-1"
-                placeholder="min 8 chars"
+                placeholder="至少 8 个字符"
               />
             </div>
             <div>
-              <Label className="text-xs">Role</Label>
+              <Label className="text-xs">角色</Label>
               <Input
                 value={editDraft.role}
                 onChange={(e) => setEditDraft({ ...editDraft, role: e.target.value })}

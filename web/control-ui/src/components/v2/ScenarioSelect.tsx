@@ -42,7 +42,7 @@ export function ScenarioSelect({
     >
       {allowEmpty ? <option value="">{emptyLabel}</option> : null}
       {custom.length > 0 ? (
-        <optgroup label="Custom scenarios">
+        <optgroup label="自定义场景">
           {custom.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -78,17 +78,17 @@ export function ScenarioPreview({ scenarioId, scenarios, builtins }: ScenarioPre
   return (
     <div className="text-muted-foreground mt-1 rounded-md border px-2 py-1 text-[11px]">
       <div>
-        <span className="text-foreground/70">role:</span> <code>{sc.role ?? 'either'}</code>
+        <span className="text-foreground/70">角色：</span> <code>{sc.role ?? 'either'}</code>
         {builtin ? (
           <>
             {' '}
-            · <span className="text-warning">built-in</span>
+            · <span className="text-warning">内置</span>
           </>
         ) : null}
       </div>
       {sc.description ? (
         <div className="mt-0.5">
-          <span className="text-foreground/70">desc:</span> {sc.description}
+          <span className="text-foreground/70">说明：</span> {sc.description}
         </div>
       ) : null}
     </div>

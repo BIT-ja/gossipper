@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildLoadTestEngine, parseDirector } from './loadTestWizard'
+import { buildLoadTestEngine, parseDirector, defaultLoadTestDraft, draftToLoadTestRequest } from './loadTestWizard'
 
 describe('parseDirector', () => {
   it('parses host:port', () => {
@@ -44,5 +44,15 @@ describe('buildLoadTestEngine', () => {
       health_min_success_ratio: 0.9,
       health_max_failed_calls: 0,
     })
+  })
+})
+
+
+describe('SIP capture request', () => {
+  it('keeps capture opt-in and sends retention without a disk quota', () => {
+    const draft = defaultLoadTestDraft()
+    expect(draftToLoadTestRequest(draft)).not.toHaveProperty('sip_capture')
+    expect(draftToLoadTestRequest({ ...draft, sip_capture: true }).sip_capture)
+      .toEqual({ enabled: true, retention_days: 7 })
   })
 })

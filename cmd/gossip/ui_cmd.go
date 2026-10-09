@@ -10,9 +10,10 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
-	apiv2 "github.com/sipcapture/gossipper/internal/api/v2"
 	"github.com/sipcapture/gossipper/internal/api"
+	apiv2 "github.com/sipcapture/gossipper/internal/api/v2"
 	"github.com/sipcapture/gossipper/internal/settingsauth"
 	"github.com/sipcapture/gossipper/internal/supervisor"
 	"github.com/sipcapture/gossipper/internal/uistore"
@@ -98,6 +99,19 @@ Flags:
 	srv := &http.Server{Addr: *listen, Handler: mux}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	go func() {
+		supervisor.SweepCapture(ctx, store.Layout().Root, jobsStore)
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				supervisor.SweepCapture(ctx, store.Layout().Root, jobsStore)
+			}
+		}
+	}()
 
 	errCh := make(chan error, 1)
 	go func() {

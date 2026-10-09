@@ -14,7 +14,7 @@ describe('validateJobID', () => {
   })
 
   it('rejects invalid characters', () => {
-    expect(validateJobID('bad id')).toMatch(/only contain/)
-    expect(validateJobID('слот')).toMatch(/only contain/)
+    expect(validateJobID('bad id')).toMatch(/仅允许/)
+    expect(validateJobID('слот')).toMatch(/仅允许/)
   })
 })

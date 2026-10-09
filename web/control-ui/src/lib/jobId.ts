@@ -2,9 +2,9 @@
 export function validateJobID(id: string): string | null {
   const x = id.trim()
   if (x === '') return null
-  if (x.length > 64) return 'Job ID must be at most 64 characters'
+  if (x.length > 64) return '任务 ID 最多为 64 个字符'
   if (!/^[a-zA-Z0-9._-]+$/.test(x)) {
-    return 'Job ID may only contain letters, digits, and . _ -'
+    return '任务 ID 仅允许字母、数字及 . _ -'
   }
   return null
 }

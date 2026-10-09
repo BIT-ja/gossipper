@@ -70,38 +70,38 @@ type Config struct {
 	SummaryJSON      string
 	SummaryHTML      string
 	// ToolVersion is set by the main package (not a CLI flag) for JSON export.
-	ToolVersion             string
-	HealthMinSuccessRatio   float64
-	HealthMaxFailedCalls    int
-	HealthMaxTimeouts       int
-	TraceMessages           bool
-	TraceShortMsg           bool
-	TraceCounts             bool
-	MessageFile             string
-	TraceErrors             bool
-	ErrorFile               string
-	TraceErrorCodes         bool
-	TraceLogs               bool
-	LogFile                 string
-	TraceStats              bool
-	TraceRTT                bool
-	TraceScreen             bool
-	StatsDumpPeriod         time.Duration
-	StatPrintPeriod         time.Duration // periodic SummaryLine to stderr (UAC/UAS); 0 = off
-	RTTDumpFrequency        int
-	ScreenFile              string
-	HEPAddr                 string
-	HEPCaptureID            uint32
-	HEPPassword             string
-	HEPRawRTCP              bool
-	HEPHomerLakeRTCP        bool
-	SendMediaReport         bool
-	TLSCertFile             string
-	TLSKeyFile              string
-	TLSCAFile               string
-	TLSSkipVerify           bool
+	ToolVersion           string
+	HealthMinSuccessRatio float64
+	HealthMaxFailedCalls  int
+	HealthMaxTimeouts     int
+	TraceMessages         bool
+	TraceShortMsg         bool
+	TraceCounts           bool
+	MessageFile           string
+	TraceErrors           bool
+	ErrorFile             string
+	TraceErrorCodes       bool
+	TraceLogs             bool
+	LogFile               string
+	TraceStats            bool
+	TraceRTT              bool
+	TraceScreen           bool
+	StatsDumpPeriod       time.Duration
+	StatPrintPeriod       time.Duration // periodic SummaryLine to stderr (UAC/UAS); 0 = off
+	RTTDumpFrequency      int
+	ScreenFile            string
+	HEPAddr               string
+	HEPCaptureID          uint32
+	HEPPassword           string
+	HEPRawRTCP            bool
+	HEPHomerLakeRTCP      bool
+	SendMediaReport       bool
+	TLSCertFile           string
+	TLSKeyFile            string
+	TLSCAFile             string
+	TLSSkipVerify         bool
 	// WSPath is the HTTP path used by SIP-over-WebSocket transports (w1/wn/ws1/wsn).
-	WSPath                  string
+	WSPath string
 	// WebRTC media settings. WebRTCICEServers is a list of STUN/TURN URLs
 	// (e.g. "stun:stun.l.google.com:19302"). WebRTCICEUsername /
 	// WebRTCICECredential are sent on every server URL that asks for auth.
@@ -114,7 +114,7 @@ type Config struct {
 	WebRTCICEAuthTTLSec int
 	WebRTCPrefersPCMA   bool
 	// WebRTCMedia is true when the run profile includes an enabled webrtc transport row.
-	WebRTCMedia bool
+	WebRTCMedia             bool
 	CommandName             string
 	CommandPeers            map[string]string
 	CommandRole             string
@@ -194,6 +194,7 @@ type Config struct {
 	RecordWAVDuplex bool
 	// CallRecordsJSONL appends one JSON object per finished call (schema gossipper_call_record_v1).
 	CallRecordsJSONL string
+	SIPCaptureDir    string
 
 	// HealthMaxRTCPFractionLost, when > 0, fails if media.rtcp_max_fraction_lost exceeds this (0..1).
 	HealthMaxRTCPFractionLost float64

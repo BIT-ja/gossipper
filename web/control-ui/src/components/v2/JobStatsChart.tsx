@@ -24,7 +24,7 @@ export function JobStatsChart({ points, height = 48 }: JobStatsChartProps) {
   }, [points, height])
 
   if (points.length === 0) {
-    return <p className="text-muted-foreground text-[10px]">No stats samples yet.</p>
+    return <p className="text-muted-foreground text-[10px]">暂无统计数据。</p>
   }
 
   return (
@@ -38,7 +38,7 @@ export function JobStatsChart({ points, height = 48 }: JobStatsChartProps) {
           points={path}
         />
       </svg>
-      <span className="text-muted-foreground text-[10px] whitespace-nowrap">max {max}</span>
+      <span className="text-muted-foreground text-[10px] whitespace-nowrap">最大值 {max}</span>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { formatTimestamp } from '@/lib/time'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
@@ -199,25 +200,25 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
   return (
     <section className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <CountCard label="Server profiles" value={counts?.servers ?? 0} />
-        <CountCard label="Client profiles" value={counts?.clients ?? 0} />
+        <CountCard label="服务端配置" value={counts?.servers ?? 0} />
+        <CountCard label="客户端配置" value={counts?.clients ?? 0} />
         <CountCard label="Scenarios" value={counts?.scenarios ?? 0} />
         <CountCard
           label="Jobs"
           value={counts?.jobs ?? 0}
           hint={counts ? `${counts.running} active` : undefined}
         />
-        <CountCard label="WAV files" value={counts?.wav ?? 0} />
-        <CountCard label="PCAP files" value={counts?.pcap ?? 0} />
+        <CountCard label="WAV 文件" value={counts?.wav ?? 0} />
+        <CountCard label="PCAP 文件" value={counts?.pcap ?? 0} />
         <CountCard
           label="Succeeded (24h)"
           value={counts?.succeeded24h ?? 0}
-          hint="completed jobs with exit 0"
+          hint="退出码为 0 的已完成任务"
         />
         <CountCard
           label="Failed (24h)"
           value={counts?.failed24h ?? 0}
-          hint="status=failed or non-zero exit"
+          hint="状态为失败或退出码非 0"
         />
         <CountCard
           label="Auth"
@@ -230,7 +231,7 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
       {alerts.length > 0 ? (
         <Card className="border-warning/40 bg-warning/10">
           <CardHeader>
-            <CardTitle className="text-warning-foreground text-sm">Alerts</CardTitle>
+            <CardTitle className="text-warning-foreground text-sm">提醒</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="text-warning-foreground/90 list-inside list-disc text-xs">
@@ -240,7 +241,7 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
             </ul>
             {diskBytes != null && diskBytes > 2 * 1024 * 1024 * 1024 ? (
               <button type="button" className="text-primary mt-2 text-xs underline" onClick={() => onNavigate?.('media')}>
-                Open Media library
+                打开媒体库
               </button>
             ) : null}
           </CardContent>
@@ -249,7 +250,7 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Jobs timeline (24h)</CardTitle>
+          <CardTitle className="text-sm">任务时间线（24 小时）</CardTitle>
         </CardHeader>
         <CardContent>
           <JobTimelineChart buckets={timeline} />
@@ -260,14 +261,12 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
         <Card className="border-warning/40 bg-warning/10">
           <CardHeader>
             <CardTitle className="text-warning-foreground text-sm">
-              ⚠ Port conflicts across profiles ({portConflicts.conflicting.size})
+              配置之间存在端口冲突（{portConflicts.conflicting.size})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-warning-foreground/90 mb-2 text-[11px]">
-              These profiles share a local bind tuple (family/port) — starting them
-              concurrently will fail on bind(2). Fix the listener on one side or run them
-              against different ports.
+              这些配置使用相同的本地地址族/端口，同时运行会导致绑定失败。请修改监听地址或使用不同端口。
             </p>
             <ul className="space-y-0.5 text-[11px]">
               {Array.from(portConflicts.conflicting)
@@ -288,19 +287,19 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
       <Card>
         <CardHeader>
           <CardTitle>
-            Recent jobs{' '}
+            最近任务{' '}
             {live ? (
               <span className="text-muted-foreground ml-2 text-[11px]">
-                live · {new Date(live.ts).toLocaleTimeString()}
+                实时 · {formatTimestamp(live.ts)}
               </span>
             ) : (
-              <span className="text-muted-foreground ml-2 text-[11px]">live · connecting…</span>
+              <span className="text-muted-foreground ml-2 text-[11px]">实时连接中…</span>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {recent.length === 0 ? (
-            <p className="text-muted-foreground text-xs">No jobs yet. Start one from the Jobs page.</p>
+            <p className="text-muted-foreground text-xs">暂无任务，请前往任务页面创建。</p>
           ) : (
             <ul className="space-y-1 text-xs">
               {recent.map((j) => {
@@ -315,7 +314,7 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
                       <span>
                         <span className="text-muted-foreground">[{liveStatus}]</span> {j.id.slice(0, 8)}…
                       </span>
-                      <span className="text-muted-foreground">{new Date(j.created_at).toLocaleString()}</span>
+                      <span className="text-muted-foreground">{formatTimestamp(j.created_at)}</span>
                     </button>
                   </li>
                 )
@@ -324,7 +323,7 @@ export function DashboardV2({ bearer, run, onOpenJob, onNavigate }: DashboardV2P
           )}
           {live ? (
             <div className="text-muted-foreground mt-2 text-[11px]">
-              Live counts:{' '}
+              实时统计：{' '}
               {Object.entries(live.counts)
                 .map(([k, v]) => `${k}=${v}`)
                 .join(' · ') || '—'}

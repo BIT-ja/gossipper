@@ -46,13 +46,13 @@ export function DataTable<T>({ rows, columns, rowKey, empty, loading, onRowClick
           {loading ? (
             <tr>
               <td colSpan={columns.length} className="text-muted-foreground px-3 py-6 text-center text-xs">
-                Loading…
+                加载中…
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="text-muted-foreground px-3 py-6 text-center text-xs">
-                {empty ?? 'No rows'}
+                {empty ?? '暂无数据'}
               </td>
             </tr>
           ) : (

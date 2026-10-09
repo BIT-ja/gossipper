@@ -17,6 +17,7 @@ export type LoadTestDraft = {
   health_enabled: boolean
   health_min_success_ratio: number
   health_max_failed_calls: number
+  sip_capture?: boolean
   soak_unlimited: boolean
 }
 
@@ -45,6 +46,7 @@ export function defaultLoadTestDraft(): LoadTestDraft {
     health_enabled: true,
     health_min_success_ratio: 0.95,
     health_max_failed_calls: 0,
+    sip_capture: false,
     soak_unlimited: false,
   }
 }
@@ -123,6 +125,7 @@ export function draftToLoadTestRequest(draft: LoadTestDraft): Record<string, unk
     health_min_success_ratio: draft.health_min_success_ratio,
     health_max_failed_calls: draft.health_max_failed_calls,
   }
+  if (draft.sip_capture) body.sip_capture = { enabled: true, retention_days: 7 }
   if (draft.job_id.trim()) body.id = draft.job_id.trim()
   if (draft.run_timeout_ms > 0) body.run_timeout_ms = draft.run_timeout_ms
   if (draft.sip_from.trim()) body.sip_from = draft.sip_from.trim()

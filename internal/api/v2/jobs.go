@@ -3,6 +3,8 @@ package v2
 import (
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 )
 
 type startJobBody struct {
+	SIPCapture supervisor.CaptureConfig `json:"sip_capture,omitempty"`
 	// ID lets the caller pin a job id (otherwise UUIDv4 is used).
 	ID string `json:"id,omitempty"`
 	// ProfileID + Kind identify which profile to launch.
@@ -178,6 +181,7 @@ func (s *Server) handleStartJob(w http.ResponseWriter, r *http.Request) {
 	}
 	spec := supervisor.Spec{
 		JobID:           jobID,
+		SIPCapture:      body.SIPCapture,
 		DataDir:         s.cfg.Store.Layout().Root,
 		ProfileID:       body.ProfileID,
 		ProfileKind:     body.ProfileKind,
@@ -186,6 +190,14 @@ func (s *Server) handleStartJob(w http.ResponseWriter, r *http.Request) {
 		RecordWAV:       body.RecordWAV,
 		RecordWAVDuplex: body.RecordWAVDuplex,
 		Engine:          body.Engine,
+	}
+	if spec.SIPCapture.Enabled {
+		_, cleanup, err := supervisor.BuildConfigFromSpec(spec)
+		cleanup()
+		if err != nil {
+			s.writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 	out, err := s.cfg.Registry.StartJob(r.Context(), job, spec)
 	if err != nil {
@@ -219,6 +231,19 @@ func (s *Server) handleDeleteJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := pathID(r)
+	job, err := s.cfg.Registry.Store.Get(r.Context(), id)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, "job not found")
+		return
+	}
+	if job.Status == supervisor.StatusRunning || job.Status == supervisor.StatusPending {
+		s.writeError(w, http.StatusConflict, "stop job before deleting")
+		return
+	}
+	if err := os.RemoveAll(filepath.Join(job.ArtifactsDir, "sip-capture")); err != nil {
+		s.writeError(w, 500, err.Error())
+		return
+	}
 	if err := s.cfg.Registry.Store.Delete(r.Context(), id); err != nil {
 		code, msg := mapStoreError(err)
 		s.writeError(w, code, msg)

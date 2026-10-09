@@ -136,6 +136,23 @@ func BuildConfigFromSpec(spec Spec) (cli.Config, func(), error) {
 			return cli.Config{}, cleanup, err
 		}
 	}
+	if spec.SIPCapture.Enabled {
+		if cfg.Transport != "u1" && cfg.Transport != "un" {
+			cleanup()
+			return cli.Config{}, func() {}, fmt.Errorf("SIP capture supports UDP only")
+		}
+		if len(cfg.JoinedClients) > 0 {
+			cleanup()
+			return cli.Config{}, func() {}, fmt.Errorf("SIP capture requires a single engine job")
+		}
+		for _, listener := range cfg.ServerListeners {
+			if listener.Transport != "u1" && listener.Transport != "un" {
+				cleanup()
+				return cli.Config{}, func() {}, fmt.Errorf("SIP capture supports UDP listeners only")
+			}
+		}
+		cfg.SIPCaptureDir = filepath.Join(spec.ArtifactsDir, "sip-capture")
+	}
 	return cfg, cleanup, nil
 }
 

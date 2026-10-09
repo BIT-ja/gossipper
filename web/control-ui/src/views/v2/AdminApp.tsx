@@ -1,3 +1,4 @@
+import { displayLabel } from '@/lib/displayLabel'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 
 import { getAuthStatusV2, getMeV2, loginV2, setUnauthorizedHandler, type MeV2 } from '@/api/v2'
@@ -12,6 +13,7 @@ import { AboutV2 } from '@/views/v2/AboutV2'
 import { AuditV2 } from '@/views/v2/AuditV2'
 import { ClientsV2 } from '@/views/v2/ClientsV2'
 import { DashboardV2 } from '@/views/v2/DashboardV2'
+import { SIPTraceViewer } from '@/components/v2/SIPTraceViewer'
 import { JobsV2 } from '@/views/v2/JobsV2'
 import { MediaV2 } from '@/views/v2/MediaV2'
 import { ReportsV2 } from '@/views/v2/ReportsV2'
@@ -25,18 +27,18 @@ const LS_JWT = 'gossipper_v2_jwt'
 const LS_THEME = 'gossipper_control_theme'
 
 const NAV: { id: NavId; label: string; hint: string; adminOnly?: boolean }[] = [
-  { id: 'dashboard', label: 'Dashboard', hint: 'overview and recent jobs' },
-  { id: 'servers', label: 'Servers', hint: 'UAS profiles' },
-  { id: 'clients', label: 'Clients', hint: 'UAC profiles' },
-  { id: 'scenarios', label: 'Scenarios', hint: 'XML scenarios + sidecar meta' },
-  { id: 'jobs', label: 'Jobs', hint: 'worker runs (start / stop / inspect)' },
-  { id: 'reports', label: 'Reports', hint: 'summary JSON, HTML and PDF from jobs' },
-  { id: 'load', label: 'Load test', hint: 'sipstress-style invite_media job wizard' },
-  { id: 'media', label: 'Media', hint: 'WAV and PCAP upload library' },
-  { id: 'audit', label: 'Audit', hint: 'mutating API actions log', adminOnly: true },
-  { id: 'users', label: 'Users', hint: 'admin users', adminOnly: true },
-  { id: 'settings', label: 'Settings', hint: 'system info, theme, sign out' },
-  { id: 'about', label: 'About', hint: 'version, capabilities, links' },
+  { id: 'dashboard', label: "概览", hint: "概览与最近任务" },
+  { id: 'servers', label: "服务端", hint: "服务端配置" },
+  { id: 'clients', label: "客户端", hint: "客户端配置" },
+  { id: 'scenarios', label: "场景", hint: "XML 场景与元数据" },
+  { id: 'jobs', label: "任务", hint: "启动、停止及查看任务" },
+  { id: 'reports', label: "报告", hint: "任务汇总、HTML 与 PDF 报告" },
+  { id: 'load', label: "压测", hint: "媒体通话压测向导" },
+  { id: 'media', label: "媒体", hint: "WAV 与 PCAP 媒体库" },
+  { id: 'audit', label: "审计", hint: "变更操作审计日志", adminOnly: true },
+  { id: 'users', label: "用户", hint: "管理登录用户", adminOnly: true },
+  { id: 'settings', label: "设置", hint: "系统信息、主题及退出登录" },
+  { id: 'about', label: "关于", hint: "版本、能力与相关链接" },
 ]
 
 function readStored(key: string): string {
@@ -65,6 +67,7 @@ export function AdminApp(_: AdminAppProps = {}) {
 function AdminAppInner() {
   const { toast } = useToast()
   const initialRoute = parseHashRoute()
+  const [traceRoute,setTraceRoute] = useState(initialRoute)
   const [nav, setNavState] = useState<NavId>(initialRoute.nav)
   const [theme, setTheme] = useState<ThemeMode>(readTheme)
   const [authKind, setAuthKind] = useState<'none' | 'internal' | null>(null)
@@ -100,6 +103,7 @@ function AdminAppInner() {
     const onHash = () => {
       const r = parseHashRoute()
       setNavState(r.nav)
+      setTraceRoute(r)
       if (r.jobId) {
         if (r.nav === 'jobs') setInspectJobId(r.jobId)
         if (r.nav === 'load') setLoadJobId(r.jobId)
@@ -132,7 +136,7 @@ function AdminAppInner() {
       } catch {
         /* ignore */
       }
-      toast('Session expired — sign in again', 'error')
+      toast("登录已过期，请重新登录", 'error')
     })
     return () => setUnauthorizedHandler(undefined)
   }, [toast])
@@ -195,12 +199,12 @@ function AdminAppInner() {
 
   const isAdmin = !me?.role || me.role === 'admin'
   const visibleNav = useMemo(() => NAV.filter((n) => !n.adminOnly || isAdmin), [isAdmin])
-  const currentLabel = useMemo(() => NAV.find((n) => n.id === nav)?.label ?? nav, [nav])
+  const currentLabel = useMemo(() => NAV.find((n) => n.id === nav)?.label ?? (nav === 'sip' ? 'SIP 信令' : nav), [nav])
 
   if (authKind === null) {
     return (
       <div className="bg-background text-foreground flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground text-sm">Checking authentication mode…</p>
+        <p className="text-muted-foreground text-sm">正在检查登录方式…</p>
       </div>
     )
   }
@@ -209,13 +213,13 @@ function AdminAppInner() {
     return (
       <div className="bg-background text-foreground min-h-screen p-4">
         <div className="border-border bg-card mx-auto mt-16 w-full max-w-md rounded-lg border p-6">
-          <h1 className="mb-1 text-base font-semibold tracking-tight">Sign in</h1>
+          <h1 className="mb-1 text-base font-semibold tracking-tight">登录</h1>
           <p className="text-muted-foreground mb-4 text-xs leading-relaxed">
             {sessionExpired ? (
-              <span className="text-destructive">Your session expired (JWT invalid or secret rotated).</span>
+              <span className="text-destructive">登录已过期，请重新登录。</span>
             ) : (
               <>
-                Internal auth (<code>auth.type: internal</code>) is enabled. Create users with{' '}
+                已启用内部认证（<code>auth.type: internal</code>）。创建用户可使用{' '}
                 <code>gossipper auth user-add -config …</code>.
               </>
             )}
@@ -227,13 +231,13 @@ function AdminAppInner() {
           ) : null}
           <div className="mb-3">
             <Label htmlFor="lu" className="text-xs">
-              Username
+              用户名
             </Label>
             <Input id="lu" value={loginUser} onChange={(e) => setLoginUser(e.target.value)} className="mt-1" />
           </div>
           <div className="mb-4">
             <Label htmlFor="lp" className="text-xs">
-              Password
+              密码
             </Label>
             <Input
               id="lp"
@@ -244,7 +248,7 @@ function AdminAppInner() {
             />
           </div>
           <Button type="button" onClick={onLogin} disabled={busy} size="sm" className="w-full">
-            Sign in
+            登录
           </Button>
           <ThemeToggle value={theme} onChange={setTheme} className="mt-4" />
         </div>
@@ -254,10 +258,10 @@ function AdminAppInner() {
 
   return (
     <div className="bg-background text-foreground flex min-h-screen">
-      <aside className="border-border bg-sidebar text-sidebar-foreground flex w-56 shrink-0 flex-col border-r">
+      <aside className="border-border bg-sidebar text-sidebar-foreground hidden w-56 shrink-0 flex-col border-r md:flex">
         <div className="border-border border-b px-3 py-3">
           <div className="text-sidebar-primary text-xs font-semibold tracking-wide">GOSSIPPER · UI</div>
-          <div className="text-muted-foreground mt-0.5 text-[10px] leading-tight">admin console (api v2)</div>
+          <div className="text-muted-foreground mt-0.5 text-[10px] leading-tight">管理控制台（API v2）</div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 p-2">
           {visibleNav.map((item) => (
@@ -286,17 +290,17 @@ function AdminAppInner() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-border bg-card/50 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
-          <h1 className="text-sm font-semibold tracking-tight">{currentLabel}</h1>
+          <div className="flex items-center gap-2"><label className="md:hidden"><span className="sr-only">导航</span><select className="border-border bg-background min-h-11 rounded border px-2 text-sm" aria-label="导航" value={nav === 'sip' ? 'jobs' : nav} onChange={e=>setNav(e.target.value as NavId)}>{visibleNav.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label><h1 className="text-sm font-semibold tracking-tight">{currentLabel}</h1></div>
           <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-[11px]">
-            {busy ? <span className="text-warning">request…</span> : null}
+            {busy ? <span className="text-warning">请求中…</span> : null}
             {me?.username ? (
               <span>
                 <span className="text-foreground">{me.username}</span>
-                {me.role ? <span className="opacity-70"> · {me.role}</span> : null}
+                {me.role ? <span className="opacity-70"> · {displayLabel(me.role)}</span> : null}
               </span>
             ) : (
               <span>
-                auth: <span className="text-foreground">{authKind}</span>
+                认证方式： <span className="text-foreground">{authKind}</span>
               </span>
             )}
           </div>
@@ -323,6 +327,7 @@ function AdminAppInner() {
           {nav === 'servers' && <ServersV2 bearer={bearer} busy={busy} run={run} errorText={lastError} />}
           {nav === 'clients' && <ClientsV2 bearer={bearer} busy={busy} run={run} errorText={lastError} />}
           {nav === 'scenarios' && <ScenariosV2 bearer={bearer} busy={busy} run={run} errorText={lastError} />}
+          {nav === 'sip' && traceRoute.jobId && <SIPTraceViewer jobId={traceRoute.jobId} callId={traceRoute.callId ?? ''} bearer={bearer} />}
           {nav === 'jobs' && (
             <JobsV2
               bearer={bearer}

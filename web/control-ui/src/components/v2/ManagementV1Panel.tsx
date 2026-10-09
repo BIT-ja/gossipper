@@ -58,18 +58,16 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
         ? [{ id: 'primary', rate: control.rate ?? 0, paused: control.paused ?? false }]
         : []
 
-  if (available === null) return <p className="text-muted-foreground text-xs">Probing /api/v1…</p>
+  if (available === null) return <p className="text-muted-foreground text-xs">正在探测 /api/v1…</p>
   if (!available) {
     return (
       <Card className="border-border/80">
         <CardHeader>
-          <CardTitle className="text-sm">Hybrid engine control (/api/v1)</CardTitle>
+          <CardTitle className="text-sm">混合引擎控制（/api/v1）</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-xs">
-            Legacy management API not available on this listener (typical for <code>gossipper ui</code> only).
-            Run <code>gossipper server</code> with hybrid config and <code>legacy_api_v1: true</code> for rate/pause
-            and dynamic clients.
+            当前监听地址不提供旧版管理 API（通常出现在 <code>gossipper ui</code> 模式）。请运行 <code>gossipper server</code> 并使用混合配置，设置 <code>legacy_api_v1: true</code> 以控制速率、暂停及动态客户端。
           </p>
           {error ? <p className="text-muted-foreground mt-2 text-[11px]">{error}</p> : null}
         </CardContent>
@@ -99,7 +97,7 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
     try {
       body = JSON.parse(newClientJSON) as Record<string, unknown>
     } catch {
-      setError('invalid client JSON')
+      setError('客户端 JSON 格式无效')
       return
     }
     void addV1Client(body, undefined, { bearer }).then(() => refresh())
@@ -108,30 +106,30 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Hybrid engine control (/api/v1)</CardTitle>
+        <CardTitle className="text-sm">混合引擎控制（/api/v1）</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-xs">
         <div className="flex flex-wrap items-end gap-2">
           <div>
-            <Label className="text-[10px]">Set rate (all engines)</Label>
+            <Label className="text-[10px]">设置所有引擎速率</Label>
             <Input className="mt-1 h-8 w-28" value={rateDraft} onChange={(e) => setRateDraft(e.target.value)} placeholder="4" />
           </div>
           <Button type="button" size="sm" onClick={onSetRateAll}>
-            Apply to all
+            应用到全部
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={() => onPauseAll(true)}>
-            Pause all
+            全部暂停
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={() => onPauseAll(false)}>
-            Resume all
+            全部恢复
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => void refresh()}>
-            Refresh
+            刷新
           </Button>
         </div>
         {engines.length > 0 ? (
           <div className="border-border rounded-md border p-2">
-            <div className="text-muted-foreground mb-2 font-medium">Per-engine control</div>
+            <div className="text-muted-foreground mb-2 font-medium">各引擎控制</div>
             <ul className="space-y-2">
               {engines.map((e) => (
                 <li key={e.id} className="flex flex-wrap items-center gap-2 font-mono">
@@ -146,7 +144,7 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
                     onChange={(ev) => setEngineRates({ ...engineRates, [e.id]: ev.target.value })}
                   />
                   <Button type="button" size="xs" onClick={() => onSetEngineRate(e.id)}>
-                    Set rate
+                    设置速率
                   </Button>
                   <Button type="button" size="xs" variant="outline" onClick={() => onPauseEngine(e.id, !e.paused)}>
                     {e.paused ? 'Resume' : 'Pause'}
@@ -158,7 +156,7 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
         ) : null}
         {stats?.engines ? (
           <div>
-            <div className="text-muted-foreground mb-1 font-medium">Stats</div>
+            <div className="text-muted-foreground mb-1 font-medium">统计</div>
             <ul className="font-mono space-y-0.5">
               {stats.engines.map((e) => (
                 <li key={e.id}>
@@ -170,7 +168,7 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
           </div>
         ) : stats ? (
           <p>
-            calls {stats.success_calls ?? 0}/{stats.total_calls ?? 0} cps={(stats.calls_per_second ?? 0).toFixed(2)}
+            通话 {stats.success_calls ?? 0}/{stats.total_calls ?? 0} cps={(stats.calls_per_second ?? 0).toFixed(2)}
           </p>
         ) : null}
         {clients?.dynamic_client_api?.can_post ? (
@@ -182,7 +180,7 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
               onChange={(e) => setNewClientJSON(e.target.value)}
             />
             <Button type="button" size="sm" className="self-start" onClick={onAddClient}>
-              Add dynamic client
+              添加动态客户端
             </Button>
           </div>
         ) : null}
@@ -193,7 +191,7 @@ export function ManagementV1Panel({ bearer }: ManagementV1PanelProps) {
                 {c.id} {c.dynamic ? '(dynamic)' : ''}
                 {c.dynamic && clients.dynamic_client_api?.can_delete ? (
                   <Button type="button" size="xs" variant="destructive" onClick={() => void deleteV1Client(c.id, { bearer }).then(refresh)}>
-                    Remove
+                    移除
                   </Button>
                 ) : null}
               </li>

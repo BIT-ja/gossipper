@@ -57,12 +57,12 @@ type ServerListener struct {
 // TransportListenerState describes one SIP server bind for runtime enable/disable via the HTTP API.
 // ScenarioName is the live SIP scenario name (shared across all listeners on this engine).
 type TransportListenerState struct {
-	Index          int    `json:"index"`
-	ScenarioName   string `json:"scenario_name"`
-	Transport      string `json:"transport"`
-	LocalIP        string `json:"local_ip"`
-	LocalPort      int    `json:"local_port"`
-	Enabled        bool   `json:"enabled"`
+	Index        int    `json:"index"`
+	ScenarioName string `json:"scenario_name"`
+	Transport    string `json:"transport"`
+	LocalIP      string `json:"local_ip"`
+	LocalPort    int    `json:"local_port"`
+	Enabled      bool   `json:"enabled"`
 }
 
 // ClientTransportSummary describes a UAC/load engine SIP bind (HTTP API "clients" side).
@@ -79,11 +79,17 @@ type ClientTransportSummary struct {
 	Accepting    bool   `json:"accepting"`
 }
 
+type SIPCapture interface {
+	Register(string, int64)
+	Record(string, string, string, []byte)
+}
+
 type Config struct {
-	Scenario  scenario.Scenario
-	Transport string
-	LocalIP   string
-	LocalPort int
+	SIPCapture SIPCapture
+	Scenario   scenario.Scenario
+	Transport  string
+	LocalIP    string
+	LocalPort  int
 	// ServerListeners, when non-empty, runs parallel SIP listeners (u1/un/t1/tn/l1/ln, or mixed).
 	// UDP Call-ID sessions are shared across all u1/un sockets; TCP/TLS use separate accept paths.
 	// TotalCalls applies to accepted calls summed across all listeners.
@@ -153,9 +159,9 @@ type Config struct {
 	WebRTCICEAuthTTLSec int
 	WebRTCPrefersPCMA   bool
 	WebRTCMedia         bool
-	CommandName      string
-	CommandPeers     map[string]string
-	UISourceIPs      []string
+	CommandName         string
+	CommandPeers        map[string]string
+	UISourceIPs         []string
 	// InjectionFile is the CLI -inf CSV path; used as default for [fieldN] without file=.
 	InjectionFile string
 
@@ -201,17 +207,17 @@ type Config struct {
 }
 
 type Engine struct {
-	cfg      Config
-	sched    scheduler.Scheduler
-	rate     *scheduler.RateController
-	stats    *stats.Collector
-	randomMu sync.Mutex
-	random   *mrand.Rand
-	scopes   *scopedVars
-	commands *commandBroker
-	cmdNet   *commandNetwork
-	trace    *traceLogger
-	hep      *hep.Client
+	cfg       Config
+	sched     scheduler.Scheduler
+	rate      *scheduler.RateController
+	stats     *stats.Collector
+	randomMu  sync.Mutex
+	random    *mrand.Rand
+	scopes    *scopedVars
+	commands  *commandBroker
+	cmdNet    *commandNetwork
+	trace     *traceLogger
+	hep       *hep.Client
 	log       eventlog.Logger
 	logActive bool // true when log is not a no-op (avoids hot-path work)
 
@@ -616,7 +622,7 @@ func (e *Engine) runClientCommandOnly(ctx context.Context) error {
 			defer wg.Done()
 			defer e.sem.Release()
 
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			send := func(payload []byte) error {
 				return fmt.Errorf("SIP send is not available in command-only scenario")
 			}
@@ -651,7 +657,7 @@ func (e *Engine) runClientCommandOnly(ctx context.Context) error {
 
 func (e *Engine) runClientShared(ctx context.Context) error {
 	localAddr := fmt.Sprintf("%s:%d", e.cfg.LocalIP, e.cfg.LocalPort)
-	shared, err := transport.NewSharedUDP(localAddr)
+	shared, err := transport.NewSharedUDP(localAddr, e.captureObserver())
 	if err != nil {
 		return err
 	}
@@ -687,7 +693,7 @@ func (e *Engine) runClientShared(ctx context.Context) error {
 			defer wg.Done()
 			defer e.sem.Release()
 
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			inbox := registry.register(callID)
 			defer registry.unregister(callID)
 
@@ -751,7 +757,7 @@ func (e *Engine) runClientPerCall(ctx context.Context) error {
 
 			dialog, err := transport.NewDialogUDP(
 				fmt.Sprintf("%s:%d", e.cfg.LocalIP, e.cfg.LocalPort),
-				remoteAddr.String(),
+				remoteAddr.String(), e.captureObserver(),
 			)
 			if err != nil {
 				once.Do(func() { runErr = err })
@@ -759,7 +765,7 @@ func (e *Engine) runClientPerCall(ctx context.Context) error {
 			}
 			defer dialog.Close()
 
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			receive := adaptReceiveToPtr(func(waitCtx context.Context) (sip.Message, error) {
 				packet, err := dialog.Receive(waitCtx)
 				if err != nil {
@@ -809,7 +815,7 @@ func (e *Engine) runClientPerSourceIP(ctx context.Context) error {
 			continue
 		}
 		bindAddr := fmt.Sprintf("%s:%d", sourceIP, e.cfg.LocalPort)
-		shared, err := transport.NewSharedUDP(bindAddr)
+		shared, err := transport.NewSharedUDP(bindAddr, e.captureObserver())
 		if err != nil {
 			closeSharedSocketPool(sharedByIP)
 			return fmt.Errorf("transport ui failed to bind client socket on %s: %w", bindAddr, err)
@@ -847,7 +853,7 @@ func (e *Engine) runClientPerSourceIP(ctx context.Context) error {
 				once.Do(func() { runErr = fmt.Errorf("no shared socket for source IP %q", sourceIP) })
 				return
 			}
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			inbox := registry.register(callID)
 			defer registry.unregister(callID)
 
@@ -919,7 +925,7 @@ func (e *Engine) runClientSharedTCP(ctx context.Context) error {
 			defer wg.Done()
 			defer e.sem.Release()
 
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			inbox := registry.register(callID)
 			defer registry.unregister(callID)
 
@@ -978,7 +984,7 @@ func (e *Engine) runClientPerCallTCP(ctx context.Context) error {
 			}
 			defer dialog.Close()
 
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			receive := adaptReceiveToPtr(func(waitCtx context.Context) (sip.Message, error) {
 				return dialog.Receive(waitCtx)
 			})
@@ -1224,7 +1230,7 @@ func (e *Engine) runServerUDP(ctx context.Context) error {
 		return errors.New("server scenario must start with a recv command")
 	}
 	localAddr := fmt.Sprintf("%s:%d", e.cfg.LocalIP, e.cfg.LocalPort)
-	shared, err := transport.NewSharedUDP(localAddr)
+	shared, err := transport.NewSharedUDP(localAddr, e.captureObserver())
 	if err != nil {
 		return err
 	}
@@ -1305,7 +1311,7 @@ func (e *Engine) runOneServerListener(ctx context.Context, co *serverMultiCoordi
 	localAddr := fmt.Sprintf("%s:%d", ln.LocalIP, ln.LocalPort)
 	switch ln.Transport {
 	case "u1", "un":
-		shared, err := transport.NewSharedUDP(localAddr)
+		shared, err := transport.NewSharedUDP(localAddr, e.captureObserver())
 		if err != nil {
 			return fmt.Errorf("udp listener %s: %w", localAddr, err)
 		}
@@ -1655,7 +1661,7 @@ func (e *Engine) runServerPerSourceIP(ctx context.Context) error {
 			continue
 		}
 		bindAddr := fmt.Sprintf("%s:%d", sourceIP, e.cfg.LocalPort)
-		shared, err := transport.NewSharedUDP(bindAddr)
+		shared, err := transport.NewSharedUDP(bindAddr, e.captureObserver())
 		if err != nil {
 			closeSharedSocketPool(pool)
 			return fmt.Errorf("transport ui failed to bind server listener on %s: %w", bindAddr, err)
@@ -1724,7 +1730,7 @@ func (e *Engine) runServerPerSourceIP(ctx context.Context) error {
 						sip.PutMessage(packet.msg)
 						continue
 					}
-						var matched bool
+					var matched bool
 					if firstCmd.RegexpMatch && firstCmd.RecvReqRegex != nil {
 						matched = firstCmd.RecvReqRegex.MatchString(packet.msg.StartLine)
 					} else {
@@ -1874,12 +1880,12 @@ func (e *Engine) runServerTCPShared(ctx context.Context) error {
 					continue
 				}
 				var matched bool
-			if firstCmd.RegexpMatch && firstCmd.RecvReqRegex != nil {
-				matched = firstCmd.RecvReqRegex.MatchString(msg.StartLine)
-			} else {
-				matched = sip.Match(msg, firstCmd.RecvReq, firstCmd.RecvResp)
-			}
-			if !matched || e.serverRejectNew(len(sessions)) {
+				if firstCmd.RegexpMatch && firstCmd.RecvReqRegex != nil {
+					matched = firstCmd.RecvReqRegex.MatchString(msg.StartLine)
+				} else {
+					matched = sip.Match(msg, firstCmd.RecvReq, firstCmd.RecvResp)
+				}
+				if !matched || e.serverRejectNew(len(sessions)) {
 					mu.Unlock()
 					continue
 				}
@@ -2134,10 +2140,10 @@ func (e *Engine) executeCall(
 		// RFC 3261 §13.2.2.4: store the last ACK for the INVITE
 		// transaction so it can be retransmitted when a retransmitted
 		// INVITE 200 OK arrives (indicating our ACK was lost).
-		inviteACK       []byte
-		inviteBranch    string
+		inviteACK    []byte
+		inviteBranch string
 		// Per-call RNG avoids global randomMu contention under high CPS.
-		callRandom      = mrand.New(mrand.NewSource(time.Now().UnixNano() + int64(callNumber)))
+		callRandom = mrand.New(mrand.NewSource(time.Now().UnixNano() + int64(callNumber)))
 	)
 	// Drain pending messages on exit so pooled *sip.Message objects are
 	// returned promptly, reducing GC pressure and peak memory.

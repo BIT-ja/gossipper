@@ -8,7 +8,7 @@ export function JobTimelineChart({ buckets }: JobTimelineChartProps) {
   const max = Math.max(1, ...buckets.map((b) => b.succeeded + b.failed))
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-muted-foreground text-[10px]">Job outcomes by hour (24h, UTC-local display)</div>
+      <div className="text-muted-foreground text-[10px]">任务结果按小时统计（24 小时，本地时间）</div>
       <div className="flex h-16 items-end gap-px">
         {buckets.map((b, i) => {
           const total = b.succeeded + b.failed
@@ -31,8 +31,8 @@ export function JobTimelineChart({ buckets }: JobTimelineChartProps) {
         })}
       </div>
       <div className="text-muted-foreground flex justify-between text-[9px]">
-        <span>24h ago</span>
-        <span>now</span>
+        <span>24 小时前</span>
+        <span>现在</span>
       </div>
     </div>
   )

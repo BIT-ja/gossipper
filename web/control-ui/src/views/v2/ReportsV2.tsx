@@ -1,3 +1,4 @@
+import { formatTimestamp } from '@/lib/time'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
@@ -134,7 +135,7 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
       },
       {
         key: 'kind',
-        header: 'Type',
+        header: "类型",
         render: (r) => (
           <span className="text-xs">
             {r.artifact.kind === 'call_records' ? '执行记录（无汇总报告）' : r.artifact.kind === 'log' ? '执行日志（无汇总报告）' : REPORT_KIND_LABEL[r.artifact.kind as ReportArtifactKind] ?? r.artifact.kind}
@@ -143,21 +144,21 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
       },
       {
         key: 'kpi',
-        header: 'KPI',
+        header: "关键指标",
         render: (r) => {
           const k = kpiMap[r.job_id]
           if (!k || !['summary', 'call_records'].includes(r.artifact.kind)) return <span className="text-muted-foreground">—</span>
           return (
             <span className="text-xs">
-              {k.total_calls ?? '—'} calls · {formatRatio(k.success_ratio ?? 0)}
-              {k.health_ok === false ? ' · FAIL' : k.health_ok ? ' · OK' : ''}
+              {k.total_calls ?? '—'} 通 · {formatRatio(k.success_ratio ?? 0)}
+              {k.health_ok === false ? ' · 未通过' : k.health_ok ? ' · 通过' : ''}
             </span>
           )
         },
       },
       {
         key: 'job',
-        header: 'Job',
+        header: "任务",
         render: (r) => (
           <button
             type="button"
@@ -170,7 +171,7 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
       },
       {
         key: 'profile',
-        header: 'Profile',
+        header: "配置",
         render: (r) => (
           <span className="text-xs">
             <code>{r.profile_kind ?? '?'}</code> · {r.profile_id ?? '—'}
@@ -179,13 +180,13 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
       },
       {
         key: 'status',
-        header: 'Job status',
+        header: "任务状态",
         render: (r) => <span className="text-xs">{r.job_status}</span>,
       },
       {
         key: 'created',
-        header: 'Generated',
-        render: (r) => new Date(r.artifact.created_at).toLocaleString(),
+        header: "生成时间",
+        render: (r) => formatTimestamp(r.artifact.created_at),
       },
       {
         key: 'actions',
@@ -195,17 +196,17 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
           <div className="flex justify-end gap-1">
             {['report_html', 'summary', 'call_records', 'log'].includes(r.artifact.kind) ? (
               <Button type="button" size="xs" variant="secondary" onClick={() => setPreviewJobId(r.job_id)}>
-                Preview
+                预览
               </Button>
             ) : null}
             <Button type="button" size="xs" variant="outline" asChild>
               <a href={artifactURL(r.job_id, r.artifact.kind, bearer)} target="_blank" rel="noreferrer noopener">
-                Open
+                打开
               </a>
             </Button>
             <Button type="button" size="xs" variant="ghost" asChild>
               <a href={artifactURL(r.job_id, r.artifact.kind, bearer)} download>
-                Download
+                下载
               </a>
             </Button>
           </div>
@@ -219,35 +220,35 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Reports</h2>
+          <h2 className="text-sm font-semibold">报告</h2>
           <p className="text-muted-foreground text-xs">
-            任务报告与执行记录。未生成汇总报告的任务也可预览；Open / Download 下载对应类型的原始文件。
+            任务报告与执行记录。未生成汇总报告的任务也可预览；打开 / 下载 下载对应类型的原始文件。
           </p>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" disabled={selected.size === 0} onClick={onBulkZip}>
-            Download ZIP ({selected.size})
+            下载 ZIP（{selected.size})
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => void run(() => refresh())}>
-            Refresh
+            刷新
           </Button>
         </div>
       </div>
       <Input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Filter by job id, profile, kind…"
+        placeholder="按任务 ID、配置或类型筛选…"
         className="max-w-sm text-xs"
       />
 
       <div className="border-border grid grid-cols-1 gap-2 rounded-md border p-3 md:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-medium">Compare job A</label>
-          <Input value={compareA} onChange={(e) => setCompareA(e.target.value)} placeholder="job uuid" className="font-mono text-xs" />
+          <label className="text-[10px] font-medium">对比任务 A</label>
+          <Input value={compareA} onChange={(e) => setCompareA(e.target.value)} placeholder="任务 UUID" className="font-mono text-xs" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-medium">Compare job B</label>
-          <Input value={compareB} onChange={(e) => setCompareB(e.target.value)} placeholder="job uuid" className="font-mono text-xs" />
+          <label className="text-[10px] font-medium">对比任务 B</label>
+          <Input value={compareB} onChange={(e) => setCompareB(e.target.value)} placeholder="任务 UUID" className="font-mono text-xs" />
         </div>
         {compareA.trim() && compareB.trim() ? <CompareSummaries a={compareA.trim()} b={compareB.trim()} bearer={bearer} /> : null}
       </div>
@@ -256,10 +257,10 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
         columns={columns}
         rows={visible}
         rowKey={(r) => `${r.job_id}-${r.artifact.id}`}
-        empty="No reports yet — run a load job with summary output."
+        empty="暂无报告，请先运行压测任务。"
       />
 
-      <Modal open={previewJobId !== null} onClose={() => setPreviewJobId(null)} title="Report preview" size="lg">
+      <Modal open={previewJobId !== null} onClose={() => setPreviewJobId(null)} title="报告预览" size="lg">
         {previewJobId ? <ReportPreview jobId={previewJobId} bearer={bearer} /> : null}
       </Modal>
     </section>
@@ -280,7 +281,7 @@ function CompareSummaries({ a, b, bearer }: { a: string; b: string; bearer?: str
       }
     })()
   }, [a, b, bearer])
-  if (!ka || !kb) return <p className="text-muted-foreground col-span-2 text-xs">Load summaries for both jobs…</p>
+  if (!ka || !kb) return <p className="text-muted-foreground col-span-2 text-xs">正在加载两个任务的汇总…</p>
   return (
     <div className="col-span-2 grid grid-cols-1 gap-3 md:grid-cols-2">
       <div>
@@ -352,16 +353,16 @@ export function JobReportsPanel({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-muted-foreground font-medium">Reports</div>
+        <div className="text-muted-foreground font-medium">报告</div>
         <div className="flex flex-wrap gap-1">
           {hasSummary && !hasHTML ? (
             <Button type="button" size="xs" variant="outline" onClick={onGenerateHTML}>
-              Generate HTML
+              生成 HTML
             </Button>
           ) : null}
           {hasHTML && !hasPDF ? (
             <Button type="button" size="xs" variant="outline" onClick={onGeneratePDF}>
-              Generate PDF
+              生成 PDF
             </Button>
           ) : null}
         </div>
@@ -384,12 +385,12 @@ export function JobReportsPanel({
               <span className="text-muted-foreground font-mono">{art.size_bytes} B</span>
               <Button type="button" size="xs" variant="outline" asChild>
                 <a href={artifactURL(jobId, kind, bearer)} target="_blank" rel="noreferrer noopener">
-                  Open
+                  打开
                 </a>
               </Button>
               <Button type="button" size="xs" variant="ghost" asChild>
                 <a href={artifactURL(jobId, kind, bearer)} download>
-                  Download
+                  下载
                 </a>
               </Button>
             </li>

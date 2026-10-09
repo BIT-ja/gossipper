@@ -64,7 +64,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
   }, [bearer])
 
   const jobIdError = useMemo(() => validateJobID(draft.job_id), [draft.job_id])
-  const directorError = useMemo(() => (parseDirector(draft.director) ? null : 'Invalid director (host:port)'), [draft.director])
+  const directorError = useMemo(() => (parseDirector(draft.director) ? null : '目标地址无效（格式：主机:端口）'), [draft.director])
   const cliPreview = useMemo(() => loadTestCliPreview(draft), [draft])
 
   const set = <K extends keyof LoadTestDraft>(key: K, value: LoadTestDraft[K]) => {
@@ -77,7 +77,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
       const out = await runLoadTest(draftToLoadTestRequest(draft) as LoadTestRunBody, { bearer })
       setActiveJobId(out.job.id)
       setHashRoute('load', { jobId: out.job.id })
-      toast(`Load test running in background (${out.job.id.slice(0, 8)}…)`, 'success')
+      toast(`压测任务正在后台运行 (${out.job.id.slice(0, 8)}…)`, 'success')
     })
   }
 
@@ -85,17 +85,17 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
     const all = saveLoadTestPreset(presetName, draft)
     setPresets(all)
     setPresetName('')
-    toast('Preset saved', 'success')
+    toast('预设已保存', 'success')
   }
 
   return (
     <section className="flex max-w-3xl flex-col gap-4">
       <header className="flex flex-col gap-1">
-        <h2 className="text-base font-semibold tracking-tight">Load test</h2>
+        <h2 className="text-base font-semibold tracking-tight">压测</h2>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Background job via <code className="text-[11px]">POST /api/v2/load-test/run</code>. Monitor below or in{' '}
+          通过以下接口启动后台任务： <code className="text-[11px]">POST /api/v2/load-test/run</code>。可在下方或此页查看进度：{' '}
           <button type="button" className="text-primary hover:underline" onClick={() => onNavigate?.('jobs')}>
-            Jobs
+            任务
           </button>
           .
           {schemaHint ? <span className="mt-1 block text-[10px]">{schemaHint}</span> : null}
@@ -108,15 +108,15 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
           bearer={bearer}
           onOpenReports={(id) => onNavigate?.('reports', id)}
           onFinished={(job) => {
-            if (job.status === 'succeeded') toast('Load test completed', 'success')
-            if (job.status === 'failed') toast('Load test failed — see summary', 'error')
+            if (job.status === 'succeeded') toast('压测已完成', 'success')
+            if (job.status === 'failed') toast('压测失败，请查看执行详情', 'error')
           }}
         />
       ) : null}
 
       <div className="border-border flex flex-wrap items-end gap-2 rounded-lg border p-3">
         <div className="flex min-w-[10rem] flex-1 flex-col gap-1">
-          <Label className="text-[10px]">Presets</Label>
+          <Label className="text-[10px]">预设</Label>
           <select
             className="border-input bg-background h-8 rounded-md border px-2 text-xs"
             defaultValue=""
@@ -126,7 +126,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
               e.target.value = ''
             }}
           >
-            <option value="">Load preset…</option>
+            <option value="">加载预设…</option>
             {presets.map((p) => (
               <option key={p.name} value={p.name}>
                 {p.name}
@@ -137,11 +137,11 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
         <Input
           value={presetName}
           onChange={(e) => setPresetName(e.target.value)}
-          placeholder="Preset name"
+          placeholder="预设名称"
           className="h-8 max-w-[10rem] text-xs"
         />
         <Button type="button" size="sm" variant="outline" onClick={onSavePreset} disabled={!presetName.trim()}>
-          Save preset
+          保存预设
         </Button>
         {presets.length ? (
           <Button
@@ -150,29 +150,29 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
             variant="ghost"
             onClick={() => {
               const n = presets[0]?.name
-              if (n && window.confirm(`Delete preset "${n}"?`)) setPresets(deleteLoadTestPreset(n))
+              if (n && window.confirm(`删除预设 "${n}"?`)) setPresets(deleteLoadTestPreset(n))
             }}
           >
-            Delete latest
+            删除最新预设
           </Button>
         ) : null}
       </div>
 
       <div className="border-border grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-2">
         <div className="flex flex-col gap-1 md:col-span-2">
-          <Label htmlFor="lt-job-id">Job ID (optional)</Label>
+          <Label htmlFor="lt-job-id">任务 ID（可选）</Label>
           <Input
             id="lt-job-id"
             value={draft.job_id}
             onChange={(e) => set('job_id', e.target.value)}
-            placeholder="auto UUID"
+            placeholder="自动生成 UUID"
             className="font-mono text-xs"
           />
           {jobIdError ? <p className="text-destructive text-[11px]">{jobIdError}</p> : null}
         </div>
 
         <div className="flex flex-col gap-1 md:col-span-2">
-          <Label htmlFor="lt-director">Director (SBC) host:port</Label>
+          <Label htmlFor="lt-director">目标 SBC 地址:端口</Label>
           <Input
             id="lt-director"
             value={draft.director}
@@ -184,7 +184,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
         </div>
 
         <div className="flex flex-col gap-1 md:col-span-2">
-          <Label htmlFor="lt-scenario">Scenario (built-in)</Label>
+          <Label htmlFor="lt-scenario">场景（内置）</Label>
           <select
             id="lt-scenario"
             className="border-input bg-background h-9 rounded-md border px-2 text-xs"
@@ -206,12 +206,12 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
               checked={draft.soak_unlimited}
               onChange={(e) => set('soak_unlimited', e.target.checked)}
             />
-            Soak mode — unlimited calls until Stop (<code>total_calls=0</code>)
+            持续压测模式，直到手动停止（<code>total_calls=0</code>)
           </label>
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="lt-calls">Total calls (-m)</Label>
+          <Label htmlFor="lt-calls">总通话数（-m）</Label>
           <Input
             id="lt-calls"
             type="number"
@@ -222,7 +222,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="lt-cps">Rate / CPS (-r)</Label>
+          <Label htmlFor="lt-cps">呼叫速率 / CPS（-r）</Label>
           <Input
             id="lt-cps"
             type="number"
@@ -233,7 +233,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="lt-conc">Max concurrent (-l)</Label>
+          <Label htmlFor="lt-conc">最大并发通话数（-l）</Label>
           <Input
             id="lt-conc"
             type="number"
@@ -243,7 +243,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="lt-timeout">Run timeout ms (0 = none)</Label>
+          <Label htmlFor="lt-timeout">运行超时（毫秒，0 表示不限）</Label>
           <Input
             id="lt-timeout"
             type="number"
@@ -273,7 +273,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="lt-provider">Provider (-sip_provider)</Label>
+          <Label htmlFor="lt-provider">服务商（-sip_provider）</Label>
           <Input
             id="lt-provider"
             value={draft.sip_provider}
@@ -285,7 +285,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
         <div className="flex flex-col gap-2 md:col-span-2">
           <label className="flex items-center gap-2 text-xs">
             <input type="checkbox" checked={draft.record_wav} onChange={(e) => set('record_wav', e.target.checked)} />
-            Record received RTP to WAV (per call)
+            逐通话录制收到的 RTP 为 WAV
           </label>
           {draft.record_wav ? (
             <label className="text-muted-foreground ml-5 flex items-center gap-2 text-xs">
@@ -294,7 +294,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
                 checked={draft.record_wav_duplex}
                 onChange={(e) => set('record_wav_duplex', e.target.checked)}
               />
-              Stereo duplex (L=sent, R=received)
+              双向立体声（左声道发送，右声道接收）
             </label>
           ) : null}
         </div>
@@ -306,12 +306,12 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
               checked={draft.health_enabled}
               onChange={(e) => set('health_enabled', e.target.checked)}
             />
-            Health gates (exit code 2 on failure)
+            健康检查阈值（失败时退出码为 2）
           </label>
           {draft.health_enabled ? (
             <div className="ml-5 grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className="flex flex-col gap-1">
-                <Label htmlFor="lt-health-ratio">Min success ratio</Label>
+                <Label htmlFor="lt-health-ratio">最低成功率</Label>
                 <Input
                   id="lt-health-ratio"
                   type="number"
@@ -323,7 +323,7 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <Label htmlFor="lt-health-fail">Max failed calls</Label>
+                <Label htmlFor="lt-health-fail">最大失败通话数</Label>
                 <Input
                   id="lt-health-fail"
                   type="number"
@@ -337,22 +337,29 @@ export function LoadTestV2({ bearer, run, onNavigate, initialJobId }: LoadTestV2
         </div>
       </div>
 
+      <div className="rounded-md border border-border p-3">
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" checked={Boolean(draft.sip_capture)} onChange={(e) => set('sip_capture', e.target.checked)} />
+          采集 SIP 信令
+        </label>
+        <p className="text-xs text-muted-foreground">手动开启后保留 7 天，每 10,000 通电话一个分片，不设磁盘容量限制。</p>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={onStart} disabled={!!directorError || !!jobIdError}>
-          Start load test job
+          启动压测任务
         </Button>
         <Button type="button" variant="outline" onClick={() => setDraft(defaultLoadTestDraft())}>
-          Reset form
+          重置表单
         </Button>
         {activeJobId ? (
           <Button type="button" variant="ghost" onClick={() => onNavigate?.('jobs', activeJobId)}>
-            Open in Jobs
+            在任务页查看
           </Button>
         ) : null}
       </div>
 
       <details className="text-muted-foreground text-xs">
-        <summary className="cursor-pointer select-none">Equivalent CLI (reference)</summary>
+        <summary className="cursor-pointer select-none">等效命令（参考）</summary>
         <pre className="bg-muted mt-2 overflow-x-auto rounded-md p-3 text-[10px] leading-snug">{cliPreview}</pre>
       </details>
     </section>

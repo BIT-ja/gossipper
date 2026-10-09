@@ -10,7 +10,13 @@ import (
 // Spec is the worker contract serialised to disk and consumed by
 // `gossipper worker --spec=<file>`. The master writes Spec into the per-job
 // temp directory and exec's the gossipper binary with `--spec=<path>`.
+type CaptureConfig struct {
+	Enabled       bool `json:"enabled"`
+	RetentionDays int  `json:"retention_days,omitempty"`
+}
+
 type Spec struct {
+	SIPCapture CaptureConfig `json:"sip_capture,omitempty"`
 	// JobID associates spec with a Job row.
 	JobID string `json:"job_id"`
 	// DataDir is the absolute path to the master's uistore data directory.

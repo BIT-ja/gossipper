@@ -17,7 +17,7 @@ const (
 	// maxUDPSIPDatagram is the maximum expected SIP message size over UDP.
 	// SIP messages rarely exceed MTU (1500 bytes); 4096 covers jumbo or
 	// multi-line SDP while using 16x less memory than the theoretical UDP max.
-	maxUDPSIPDatagram = 4096
+	maxUDPSIPDatagram = 65535
 	// inboundChanDepth is the base depth of SharedUDP Receive channel per receiver slot (scaled below).
 	inboundChanDepth = 512
 	maxInboundChan   = 8192
@@ -54,7 +54,10 @@ var udpBufPool = sync.Pool{
 
 // SharedUDP is a UDP socket shared by multiple logical SIP flows (gossipper UAC/UAS).
 // On supported platforms it may use several listeners with SO_REUSEPORT and one merged Receive channel.
+type SIPObserver func(direction, src, dst string, raw []byte)
+
 type SharedUDP struct {
+	observer      SIPObserver
 	conns         []*net.UDPConn
 	incoming      chan Packet
 	closeOnce     sync.Once
@@ -66,13 +69,13 @@ type SharedUDP struct {
 
 // NewSharedUDP binds localAddr and starts ingress goroutines. Parallelism is controlled by
 // environment variable GOSSIPPER_UDP_RECEIVERS (integer): 0 or unset means auto (see effectiveReceivers).
-func NewSharedUDP(localAddr string) (*SharedUDP, error) {
-	return NewSharedUDPWithReceivers(localAddr, receiversFromEnv())
+func NewSharedUDP(localAddr string, observer ...SIPObserver) (*SharedUDP, error) {
+	return NewSharedUDPWithReceivers(localAddr, receiversFromEnv(), observer...)
 }
 
 // NewSharedUDPWithReceivers is like NewSharedUDP but takes an explicit receiver count (0 = auto).
 // Intended for tests; production tuning uses GOSSIPPER_UDP_RECEIVERS.
-func NewSharedUDPWithReceivers(localAddr string, receivers int) (*SharedUDP, error) {
+func NewSharedUDPWithReceivers(localAddr string, receivers int, observer ...SIPObserver) (*SharedUDP, error) {
 	addr, err := net.ResolveUDPAddr("udp", localAddr)
 	if err != nil {
 		return nil, err
@@ -87,6 +90,9 @@ func NewSharedUDPWithReceivers(localAddr string, receivers int) (*SharedUDP, err
 		conns:         conns,
 		incoming:      make(chan Packet, chDepth),
 		receiverCount: len(conns),
+	}
+	if len(observer) > 0 {
+		s.observer = observer[0]
 	}
 	for _, c := range conns {
 		go s.readLoop(c)
@@ -169,6 +175,9 @@ func (s *SharedUDP) readLoop(conn *net.UDPConn) {
 			udpBufPool.Put(buffer)
 			continue
 		}
+		if s.observer != nil {
+			s.observer("recv", addr.String(), conn.LocalAddr().String(), buffer[:n])
+		}
 		p := Packet{Data: buffer[:n], Addr: addr, pool: &udpBufPool}
 		select {
 		case s.incoming <- p:
@@ -198,6 +207,13 @@ func (s *SharedUDP) Send(payload []byte, addr *net.UDPAddr) error {
 	// Round-robin across sockets to reduce kernel lock contention.
 	idx := s.sendIdx.Add(1) % uint64(len(s.conns))
 	_, err := s.conns[idx].WriteToUDP(payload, addr)
+	if s.observer != nil {
+		direction := "send"
+		if err != nil {
+			direction = "send_error"
+		}
+		s.observer(direction, s.conns[idx].LocalAddr().String(), addr.String(), payload)
+	}
 	return err
 }
 
@@ -230,11 +246,12 @@ func (s *SharedUDP) Close() error {
 }
 
 type DialogUDP struct {
-	conn   *net.UDPConn
-	remote *net.UDPAddr
+	observer SIPObserver
+	conn     *net.UDPConn
+	remote   *net.UDPAddr
 }
 
-func NewDialogUDP(localAddr, remoteAddr string) (*DialogUDP, error) {
+func NewDialogUDP(localAddr, remoteAddr string, observer ...SIPObserver) (*DialogUDP, error) {
 	local, err := net.ResolveUDPAddr("udp", localAddr)
 	if err != nil {
 		return nil, err
@@ -247,11 +264,22 @@ func NewDialogUDP(localAddr, remoteAddr string) (*DialogUDP, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DialogUDP{conn: conn, remote: remote}, nil
+	d := &DialogUDP{conn: conn, remote: remote}
+	if len(observer) > 0 {
+		d.observer = observer[0]
+	}
+	return d, nil
 }
 
 func (d *DialogUDP) Send(payload []byte) error {
 	_, err := d.conn.WriteToUDP(payload, d.remote)
+	if d.observer != nil {
+		direction := "send"
+		if err != nil {
+			direction = "send_error"
+		}
+		d.observer(direction, d.conn.LocalAddr().String(), d.remote.String(), payload)
+	}
 	return err
 }
 
@@ -294,6 +322,9 @@ func (d *DialogUDP) Receive(ctx context.Context) (Packet, error) {
 			return Packet{}, context.DeadlineExceeded
 		}
 		return Packet{}, err
+	}
+	if d.observer != nil {
+		d.observer("recv", addr.String(), d.conn.LocalAddr().String(), buffer[:n])
 	}
 	payload := make([]byte, n)
 	copy(payload, buffer[:n])

@@ -1,4 +1,5 @@
 export type NavId =
+  | 'sip'
   | 'dashboard'
   | 'servers'
   | 'clients'
@@ -27,7 +28,7 @@ const VALID: NavId[] = [
   'about',
 ]
 
-export type HashRoute = { nav: NavId; jobId?: string; reportJobId?: string }
+export type HashRoute = { nav: NavId; jobId?: string; reportJobId?: string; callId?: string }
 
 export function parseHashRoute(hash = window.location.hash): HashRoute {
   const raw = hash.replace(/^#\/?/, '').trim()
@@ -35,11 +36,11 @@ export function parseHashRoute(hash = window.location.hash): HashRoute {
   const [path, query] = raw.split('?')
   const parts = path.split('/').filter(Boolean)
   const nav = (parts[0] ?? 'dashboard') as NavId
-  const safeNav = VALID.includes(nav) ? nav : 'dashboard'
+  const safeNav = nav === 'jobs' && parts[2] === 'sip' ? 'sip' : VALID.includes(nav) ? nav : 'dashboard'
   const params = new URLSearchParams(query ?? '')
   const jobId = parts[1] ?? params.get('job') ?? undefined
   const reportJobId = params.get('report') ?? undefined
-  return { nav: safeNav, jobId: jobId || undefined, reportJobId: reportJobId || undefined }
+  return { callId: params.get('call_id') ?? '', nav: safeNav, jobId: jobId || undefined, reportJobId: reportJobId || undefined }
 }
 
 export function setHashRoute(nav: NavId, opts?: { jobId?: string; report?: string }) {

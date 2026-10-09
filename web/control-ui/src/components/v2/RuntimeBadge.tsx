@@ -2,31 +2,31 @@ import type { ProfileRuntime } from '@/api/v2'
 
 const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   'built-in': {
-    label: 'built-in',
+    label: "内置",
     cls: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100',
   },
   running: {
-    label: 'running',
+    label: "运行中",
     cls: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100',
   },
   pending: {
-    label: 'pending',
+    label: "等待中",
     cls: 'bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100',
   },
   idle: {
-    label: 'idle',
+    label: "空闲",
     cls: 'bg-muted text-foreground/70',
   },
   succeeded: {
-    label: 'succeeded',
+    label: "已成功",
     cls: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200',
   },
   failed: {
-    label: 'failed',
+    label: "已失败",
     cls: 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-100',
   },
   stopped: {
-    label: 'stopped',
+    label: "已停止",
     cls: 'bg-slate-200 text-slate-800 dark:bg-slate-700/40 dark:text-slate-100',
   },
 }

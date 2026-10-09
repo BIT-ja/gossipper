@@ -375,6 +375,7 @@ export const startJob = (
     profile_id: string
     profile_kind: 'server' | 'client' | 'tool'
     scenario_id?: string
+    sip_capture?: { enabled: boolean; retention_days?: number }
     record_wav?: boolean
     record_wav_duplex?: boolean
     engine?: Record<string, unknown>
@@ -399,6 +400,7 @@ export const runTool = (
   )
 
 export type LoadTestRunBody = {
+ sip_capture?: {enabled:boolean;retention_days?:number}
   id?: string
   director: string
   scenario_id?: string

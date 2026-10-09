@@ -52,7 +52,7 @@ func (e *Engine) runClientSharedTLS(ctx context.Context) error {
 		go func(callNumber int) {
 			defer wg.Done()
 			defer e.sem.Release()
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			inbox := registry.register(callID)
 			defer registry.unregister(callID)
 			receive := func(waitCtx context.Context) (*sip.Message, error) {
@@ -113,7 +113,7 @@ func (e *Engine) runClientPerCallTLS(ctx context.Context) error {
 				return
 			}
 			defer dialog.Close()
-			callID := newCallID(callNumber)
+			callID := e.newCapturedCallID(callNumber)
 			localIP := resolveLocalIP(dialog.LocalPort(), e.cfg.LocalIP, e.cfg.RemoteHost, e.cfg.RemotePort)
 			send := func(payload []byte) error { return dialog.Send(payload) }
 			receive := adaptReceiveToPtr(func(waitCtx context.Context) (sip.Message, error) { return dialog.Receive(waitCtx) })

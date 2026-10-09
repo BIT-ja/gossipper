@@ -32,10 +32,10 @@ export function ReportPreview({ jobId, bearer, mode = 'both' }: ReportPreviewPro
     {summary?.findings.length ? <ul className="text-destructive list-inside list-disc text-xs">
       {summary.findings.map((f, i) => <li key={i}>{f}</li>)}
     </ul> : null}
-    {html ? <iframe title="report preview" className="border-border h-[420px] w-full rounded-md border bg-white" srcDoc={html} sandbox="allow-same-origin" /> : <>
+    {html ? <iframe title="报告预览" className="border-border h-[420px] w-full rounded-md border bg-white" srcDoc={html} sandbox="allow-same-origin" /> : <>
       <p className="text-muted-foreground text-xs">未生成 HTML 报告。以下直接展示已保存的执行记录；不包含未采集的 SIP 报文或指标。</p>
       <JobExecutionDetails key={jobId} job={detail.job} artifacts={detail.artifacts} bearer={bearer} />
-      <h3 className="font-semibold">All artifacts</h3>
+      <h3 className="font-semibold">全部产物</h3>
       <ArtifactLinks jobId={jobId} artifacts={detail.artifacts} bearer={bearer} />
     </>}
   </div>

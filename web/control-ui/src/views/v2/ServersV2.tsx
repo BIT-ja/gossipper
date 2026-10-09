@@ -112,7 +112,7 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
   }
 
   const onDelete = (row: ServerProfile) => {
-    if (!window.confirm(`Delete server profile "${row.id}"?`)) return
+    if (!window.confirm(`删除服务端配置 "${row.id}"?`)) return
     void run(async () => {
       await deleteServer(row.id, { bearer })
       await refresh()
@@ -140,13 +140,13 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
   const onStart = (row: ServerProfile) => {
     const block = isProfilePortBlocked('server', row.id, rows, clients)
     if (block.blocked) {
-      toast(`Port conflict: ${block.details.join(', ')}`, 'error')
+      toast(`端口冲突： ${block.details.join(', ')}`, 'error')
       return
     }
     void run(async () => {
       try {
         await startServerProfile(row.id, { bearer })
-        toast('Job started', 'success')
+        toast("任务已启动", 'success')
       } catch (err) {
         console.warn('start:', err)
       } finally {
@@ -180,23 +180,23 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
             {conflicts.conflicting.has(`server:${r.id}`) ? (
               <span
                 className="bg-destructive/15 text-destructive rounded px-1 py-0.5 font-mono text-[9px] uppercase"
-                title={`Port conflict: ${(conflicts.details.get(`server:${r.id}`) ?? []).join(', ')}`}
+                title={`端口冲突： ${(conflicts.details.get(`server:${r.id}`) ?? []).join(', ')}`}
               >
-                ⚠ port
+                端口冲突
               </span>
             ) : null}
           </span>
         ),
       },
-      { key: 'name', header: 'Name', render: (r) => r.name },
+      { key: 'name', header: "名称", render: (r) => r.name },
       {
         key: 'status',
-        header: 'Status',
+        header: "状态",
         render: (r) => <RuntimeBadge runtime={r.runtime} />,
       },
       {
         key: 'transports',
-        header: 'Transports',
+        header: "传输方式",
         render: (r) =>
           (r.transports ?? []).map((t, i) => (
             <span
@@ -211,7 +211,7 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
       },
       {
         key: 'scenario',
-        header: 'Scenario',
+        header: "场景",
         render: (r) => (r.scenario_ref ? <code className="text-xs">{r.scenario_ref}</code> : '—'),
       },
       {
@@ -221,7 +221,7 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
         render: (r) => {
           const builtin = r.source === 'built-in'
           const title = builtin
-            ? 'Built-in profile (seeded from management config) — runs inside the master process. Restart the service to change bindings.'
+            ? '内置配置在主进程中运行，修改监听地址后需要重启服务。'
             : undefined
           const portBlock = isProfilePortBlocked('server', r.id, rows, clients)
           return (
@@ -234,11 +234,11 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
                 disabled={busy || builtin || portBlock.blocked}
                 title={
                   portBlock.blocked
-                    ? `Port conflict: ${portBlock.details.join(', ')}`
+                    ? `端口冲突： ${portBlock.details.join(', ')}`
                     : title
                 }
               >
-                Start
+                启动
               </Button>
               <Button
                 type="button"
@@ -248,13 +248,13 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
                 disabled={busy || builtin}
                 title={title}
               >
-                Stop
+                停止
               </Button>
               <Button type="button" variant="outline" size="xs" onClick={() => onEdit(r)}>
-                Edit
+                编辑
               </Button>
               <Button type="button" variant="outline" size="xs" onClick={() => onDuplicate(r)}>
-                Duplicate
+                复制
               </Button>
               <Button
                 type="button"
@@ -264,7 +264,7 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
                 disabled={builtin}
                 title={title}
               >
-                Delete
+                删除
               </Button>
             </div>
           )
@@ -278,18 +278,17 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Server profiles (UAS)</h2>
+          <h2 className="text-sm font-semibold">服务端配置（UAS）</h2>
           <p className="text-muted-foreground text-xs">
-            Manage SIP server profiles stored in <code>profiles/servers/&lt;id&gt;.json</code>.
-            Use the Jobs page to actually start an engine from a profile.
+            管理 SIP 服务端配置，存储于 <code>profiles/servers/&lt;id&gt;.json</code>。在任务页面中选择配置启动引擎。
           </p>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => void run(() => refresh())}>
-            Refresh
+            刷新
           </Button>
           <Button type="button" size="sm" onClick={onCreate}>
-            + New server profile
+            + 新建服务端配置
           </Button>
         </div>
       </div>
@@ -302,9 +301,8 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
 
       {conflicts.conflicting.size > 0 ? (
         <div className="border-warning/40 bg-warning/10 text-warning-foreground rounded-md border px-3 py-2 text-xs">
-          <span className="font-medium">Port conflict warning:</span>{' '}
-          {conflicts.conflicting.size} profile{conflicts.conflicting.size > 1 ? 's' : ''} share a local bind
-          (family/port). Starting them concurrently will fail on bind(2). Affected:{' '}
+          <span className="font-medium">端口冲突提醒：</span>{' '}
+          {conflicts.conflicting.size} 个配置{conflicts.conflicting.size > 1 ? 's' : ''} 共享本地地址族/端口，同时运行会导致绑定失败。涉及：{' '}
           <code>{Array.from(conflicts.conflicting).join(', ')}</code>
         </div>
       ) : null}
@@ -314,22 +312,22 @@ export function ServersV2({ bearer, busy, run, errorText }: ServersV2Props) {
         columns={columns}
         rowKey={(r) => r.id}
         loading={busy && rows.length === 0}
-        empty="No server profiles yet — create one above."
+        empty="暂无服务端配置，请点击上方按钮创建。"
       />
 
       <Modal
         open={draft !== null}
         onClose={onClose}
         size="lg"
-        title={createMode ? 'New server profile' : `Edit server profile · ${draft?.id ?? ''}`}
-        description={createMode ? 'IDs must be ASCII [a-zA-Z0-9._-], up to 64 chars.' : undefined}
+        title={createMode ? "新建服务端配置" : `编辑服务端配置 · ${draft?.id ?? ''}`}
+        description={createMode ? 'ID 仅支持字母、数字、点、下划线及连字符，最多 64 个字符。' : undefined}
         footer={
           <>
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
-              Cancel
+              取消
             </Button>
             <Button type="button" size="sm" onClick={onSave} disabled={busy}>
-              {createMode ? 'Create' : 'Save'}
+              {createMode ? "创建" : "保存"}
             </Button>
           </>
         }
@@ -377,7 +375,7 @@ function ServerForm({
           />
         </div>
         <div>
-          <Label className="text-xs">Name</Label>
+          <Label className="text-xs">名称</Label>
           <Input
             value={value.name}
             onChange={(e) => set('name', e.target.value)}
@@ -387,7 +385,7 @@ function ServerForm({
         </div>
       </div>
       <div>
-        <Label className="text-xs">Description</Label>
+        <Label className="text-xs">说明</Label>
         <Input
           value={value.description ?? ''}
           onChange={(e) => set('description', e.target.value)}
@@ -396,7 +394,7 @@ function ServerForm({
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
-          <Label className="text-xs">Default scenario</Label>
+          <Label className="text-xs">默认场景</Label>
           <ScenarioSelect
             value={value.scenario_ref ?? ''}
             onChange={(id) => set('scenario_ref', id || undefined)}
@@ -411,7 +409,7 @@ function ServerForm({
           />
         </div>
         <div>
-          <Label className="text-xs">Max concurrent</Label>
+          <Label className="text-xs">最大并发通话数</Label>
           <Input
             type="number"
             value={value.max_concurrent ?? 0}
@@ -421,13 +419,13 @@ function ServerForm({
         </div>
       </div>
       <div>
-        <Label className="text-xs">Transports / listeners</Label>
+        <Label className="text-xs">传输方式 / 监听地址</Label>
         <div className="mt-1">
           <TransportListEditor value={value.transports ?? []} onChange={setTransports} />
         </div>
       </div>
       <div>
-        <Label className="text-xs">Notes</Label>
+        <Label className="text-xs">备注</Label>
         <Textarea
           value={value.notes ?? ''}
           onChange={(e) => set('notes', e.target.value)}

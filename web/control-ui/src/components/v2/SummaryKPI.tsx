@@ -4,20 +4,20 @@ import { formatRatio } from '@/lib/summaryParse'
 export function SummaryKPICards({ kpi }: { kpi: SummaryKPI }) {
   return (
     <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-      <Kpi label="Calls" value={`${kpi.success_calls}/${kpi.total_calls}`} hint={`failed ${kpi.failed_calls}`} />
-      <Kpi label="Success" value={formatRatio(kpi.success_ratio)} />
+      <Kpi label="成功 / 总通话" value={`${kpi.success_calls}/${kpi.total_calls}`} hint={`failed ${kpi.failed_calls}`} />
+      <Kpi label="成功率" value={formatRatio(kpi.success_ratio)} />
       <Kpi label="CPS" value={kpi.calls_per_second.toFixed(2)} />
       <Kpi
-        label="Health"
-        value={kpi.health_ok === null ? '—' : kpi.health_ok ? 'PASS' : 'FAIL'}
+        label="健康检查"
+        value={kpi.health_ok === null ? '—' : kpi.health_ok ? '通过' : '未通过'}
         hint={kpi.findings[0]}
         bad={kpi.health_ok === false}
         good={kpi.health_ok === true}
       />
-      <Kpi label="Retrans" value={String(kpi.retransmits)} />
-      <Kpi label="Timeouts" value={String(kpi.timeouts)} />
-      <Kpi label="RTP recv" value={String(kpi.rtp_packets_received)} />
-      {kpi.duration_ms != null ? <Kpi label="Duration" value={`${(kpi.duration_ms / 1000).toFixed(1)}s`} /> : null}
+      <Kpi label="重传次数" value={String(kpi.retransmits)} />
+      <Kpi label="超时次数" value={String(kpi.timeouts)} />
+      <Kpi label="接收 RTP" value={String(kpi.rtp_packets_received)} />
+      {kpi.duration_ms != null ? <Kpi label="持续时间" value={`${(kpi.duration_ms / 1000).toFixed(1)}s`} /> : null}
     </div>
   )
 }

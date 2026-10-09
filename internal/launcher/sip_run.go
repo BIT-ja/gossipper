@@ -17,6 +17,7 @@ import (
 	"github.com/sipcapture/gossipper/internal/reporthtml"
 	"github.com/sipcapture/gossipper/internal/scenario"
 	"github.com/sipcapture/gossipper/internal/settingsauth"
+	"github.com/sipcapture/gossipper/internal/sipcapture"
 	"github.com/sipcapture/gossipper/internal/stats"
 )
 
@@ -36,6 +37,18 @@ func runSIPScenarioSingle(ctx context.Context, cfg cli.Config) error {
 		return err
 	}
 
+	if cfg.SIPCaptureDir != "" {
+		capture, err := sipcapture.OpenWithMode(cfg.SIPCaptureDir, cfg.ServerMode)
+		if err != nil {
+			return fmt.Errorf("SIP capture: %w", err)
+		}
+		defer func() {
+			if err := capture.Close(); err != nil {
+				fmt.Fprintln(os.Stderr, "SIP capture:", err)
+			}
+		}()
+		prepared.EngineConfig.SIPCapture = capture
+	}
 	var settingsAuth *settingsauth.Auth
 
 	logger, closeLog, err := BuildEventLogger(prepared.CLIConfig, prepared.Scenario)

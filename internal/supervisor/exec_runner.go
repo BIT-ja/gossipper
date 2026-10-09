@@ -83,6 +83,9 @@ func (r *ExecRunner) Start(ctx context.Context, spec Spec) (int, error) {
 	if spec.DataDir == "" {
 		spec.DataDir = r.DataDir
 	}
+	if err := SaveCaptureConfig(spec.ArtifactsDir, spec.SIPCapture); err != nil {
+		return 0, err
+	}
 	bin, err := r.binary()
 	if err != nil {
 		return 0, fmt.Errorf("locate gossipper binary: %w", err)

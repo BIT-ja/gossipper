@@ -13,7 +13,7 @@ export function ArtifactLinks({
   artifacts: JobArtifact[]
   bearer?: string
 }) {
-  if (artifacts.length === 0) return <p className="text-muted-foreground text-xs">No files yet.</p>
+  if (artifacts.length === 0) return <p className="text-muted-foreground text-xs">暂无文件。</p>
   return (
     <ul className="space-y-1">
       {artifacts.map((a) => {
@@ -28,12 +28,12 @@ export function ArtifactLinks({
               <>
                 <Button type="button" size="xs" variant="outline" asChild>
                   <a href={artifactURL(jobId, a.kind, bearer)} target="_blank" rel="noreferrer noopener">
-                    Open
+                    打开
                   </a>
                 </Button>
                 <Button type="button" size="xs" variant="ghost" asChild>
                   <a href={artifactURL(jobId, a.kind, bearer)} download>
-                    Download
+                    下载
                   </a>
                 </Button>
               </>

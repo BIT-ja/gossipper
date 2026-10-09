@@ -1,3 +1,4 @@
+import { formatTimestamp } from '@/lib/time'
 import { useEffect, useState } from 'react'
 
 import { importScenarioFromPCAPJob, listJobs, type Job } from '@/api/v2'
@@ -49,55 +50,55 @@ export function PcapImportPanel({ bearer, run, onImported }: PcapImportPanelProp
   return (
     <section className="border-border flex flex-col gap-3 rounded-lg border p-3">
       <div>
-        <h3 className="text-sm font-medium">Import from pcap2scenario</h3>
+        <h3 className="text-sm font-medium">从 pcap2scenario 导入</h3>
         <p className="text-muted-foreground text-xs">
-          Auto-import <code>scenario_uac.xml</code> / <code>scenario_uas.xml</code> from a succeeded tool job via{' '}
+          自动导入 <code>scenario_uac.xml</code> / <code>scenario_uas.xml</code> 从成功的工具任务导入，接口为{' '}
           <code>POST /api/v2/scenarios/import-from-pcap-job</code>.
         </p>
       </div>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <div>
-          <Label className="text-[10px]">pcap2scenario job</Label>
+          <Label className="text-[10px]">pcap2scenario 任务</Label>
           <select
             className="border-input bg-background mt-1 h-8 w-full rounded-md border px-2 text-xs"
             value={selectedJob}
             onChange={(e) => setSelectedJob(e.target.value)}
           >
-            <option value="">— select succeeded job —</option>
+            <option value="">— 选择成功的任务 —</option>
             {jobs.map((j) => (
               <option key={j.id} value={j.id}>
-                {j.id.slice(0, 12)}… · {new Date(j.finished_at ?? j.created_at).toLocaleString()}
+                {j.id.slice(0, 12)}… · {formatTimestamp(j.finished_at ?? j.created_at)}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <Label className="text-[10px]">Base scenario ID (UAC)</Label>
+          <Label className="text-[10px]">基础场景 ID（UAC）</Label>
           <Input
             value={scenarioId}
             onChange={(e) => setScenarioId(e.target.value)}
             placeholder="my_call_uac"
             className="mt-1 font-mono text-xs"
           />
-          <p className="text-muted-foreground mt-0.5 text-[10px]">UAS defaults to {scenarioId.trim() || '{id}'}_uas</p>
+          <p className="text-muted-foreground mt-0.5 text-[10px]">UAS 默认后缀为 {scenarioId.trim() || '{id}'}_uas</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" disabled={!selectedJob || !scenarioId.trim()} onClick={() => onAutoImport('uac')}>
-          Import UAC
+          导入 UAC
         </Button>
         <Button type="button" size="sm" variant="outline" disabled={!selectedJob || !scenarioId.trim()} onClick={() => onAutoImport('uas')}>
-          Import UAS
+          导入 UAS
         </Button>
         <Button type="button" size="sm" variant="secondary" disabled={!selectedJob || !scenarioId.trim()} onClick={() => onAutoImport('both')}>
-          Import both
+          同时导入
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={refreshJobs}>
-          Refresh jobs
+          刷新任务
         </Button>
       </div>
       {jobs.length === 0 ? (
-        <p className="text-muted-foreground text-xs">No succeeded pcap2scenario jobs — run one from Prep below.</p>
+        <p className="text-muted-foreground text-xs">暂无成功的 pcap2scenario 任务，请先在下方场景准备中运行。</p>
       ) : null}
     </section>
   )

@@ -1,10 +1,12 @@
 package launcher
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sipcapture/gossipper/internal/api"
 	"github.com/sipcapture/gossipper/internal/cli"
@@ -102,10 +104,24 @@ func openUIBundle(cfg cli.Config) (*UIBundle, error) {
 	if err := seedProfilesFromConfig(store, cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "api: warn: seed profiles from management config failed: %v\n", err)
 	}
+	sweepCtx, sweepCancel := context.WithCancel(context.Background())
+	go func() {
+		supervisor.SweepCapture(sweepCtx, dir, jobsStore)
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sweepCtx.Done():
+				return
+			case <-ticker.C:
+				supervisor.SweepCapture(sweepCtx, dir, jobsStore)
+			}
+		}
+	}()
 	return &UIBundle{
 		Store:    store,
 		Registry: reg,
-		closer:   db.Close,
+		closer:   func() error { sweepCancel(); return db.Close() },
 	}, nil
 }
 

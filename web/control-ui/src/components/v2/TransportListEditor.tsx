@@ -17,7 +17,7 @@ const TRANSPORT_OPTIONS: { value: string; label: string; beta?: boolean }[] = [
   { value: 'wn', label: 'wn — WebSocket (per-call)' },
   { value: 'ws1', label: 'ws1 — WSS (shared)' },
   { value: 'wsn', label: 'wsn — WSS (per-call)' },
-  { value: 'webrtc', label: 'webrtc — WebRTC media (experimental)', beta: true },
+  { value: 'webrtc', label: 'webrtc — WebRTC 媒体（实验性）', beta: true },
 ]
 
 export type TransportListEditorProps = {
@@ -60,11 +60,11 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
     <div className="flex flex-col gap-2">
       {missingIce ? (
         <p className="border-warning/40 bg-warning/10 text-warning rounded-md border px-2 py-1.5 text-[11px]">
-          WebRTC transport enabled without ICE servers — add STUN and/or TURN URLs for NAT traversal.
+          已启用 WebRTC，但未配置 ICE 服务器。请添加 STUN 或 TURN 地址以穿透 NAT。
         </p>
       ) : null}
       {value.length === 0 ? (
-        <p className="text-muted-foreground text-xs">No transports yet. Add the first one below.</p>
+        <p className="text-muted-foreground text-xs">暂无传输方式，请在下方添加。</p>
       ) : null}
       {value.map((t, idx) => (
         <div
@@ -73,7 +73,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
         >
           <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
             <div className="md:col-span-4">
-              <Label className="text-[10px]">Transport</Label>
+              <Label className="text-[10px]">传输方式</Label>
               <select
                 value={t.transport}
                 onChange={(e) => update(idx, { transport: e.target.value })}
@@ -88,7 +88,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
               </select>
             </div>
             <div className="md:col-span-4">
-              <Label className="text-[10px]">Local IP</Label>
+              <Label className="text-[10px]">本地 IP</Label>
               <Input
                 value={t.local_ip ?? ''}
                 onChange={(e) => update(idx, { local_ip: e.target.value })}
@@ -97,7 +97,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
               />
             </div>
             <div className="md:col-span-2">
-              <Label className="text-[10px]">Port</Label>
+              <Label className="text-[10px]">端口</Label>
               <Input
                 type="number"
                 value={t.local_port ?? 0}
@@ -112,14 +112,14 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
                   checked={t.enabled}
                   onChange={(e) => update(idx, { enabled: e.target.checked })}
                 />
-                enabled
+                启用
               </label>
             </div>
           </div>
           {(t.transport === 'l1' || t.transport === 'ln' || t.transport === 'ws1' || t.transport === 'wsn') && (
             <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-12">
               <div className="md:col-span-6">
-                <Label className="text-[10px]">TLS cert file</Label>
+                <Label className="text-[10px]">TLS 证书文件</Label>
                 <Input
                   value={t.tls_cert_file ?? ''}
                   onChange={(e) => update(idx, { tls_cert_file: e.target.value })}
@@ -128,7 +128,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
                 />
               </div>
               <div className="md:col-span-6">
-                <Label className="text-[10px]">TLS key file</Label>
+                <Label className="text-[10px]">TLS 密钥文件</Label>
                 <Input
                   value={t.tls_key_file ?? ''}
                   onChange={(e) => update(idx, { tls_key_file: e.target.value })}
@@ -140,7 +140,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
           )}
           {(t.transport === 'w1' || t.transport === 'wn' || t.transport === 'ws1' || t.transport === 'wsn') && (
             <div className="mt-2">
-              <Label className="text-[10px]">WebSocket path</Label>
+              <Label className="text-[10px]">WebSocket 路径</Label>
               <Input
                 value={t.ws_path ?? ''}
                 onChange={(e) => update(idx, { ws_path: e.target.value })}
@@ -153,7 +153,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
             <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-12">
               <div className="md:col-span-12">
                 <Label className="text-[10px]">
-                  ICE servers (one URL per line — stun:host:port, turn:host:port, or turn:user:pass@host:port)
+                  ICE 服务器（每行一个 URL：stun:host:port、turn:host:port 或 turn:user:pass@host:port）
                 </Label>
                 <textarea
                   value={(t.ice_servers ?? []).join('\n')}
@@ -185,7 +185,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
                 </div>
               </div>
               <div className="md:col-span-4">
-                <Label className="text-[10px]">TURN username (static or REST identity)</Label>
+                <Label className="text-[10px]">TURN 用户名（静态或 REST 身份）</Label>
                 <Input
                   value={t.ice_username ?? ''}
                   onChange={(e) => update(idx, { ice_username: e.target.value })}
@@ -193,7 +193,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
                 />
               </div>
               <div className="md:col-span-4">
-                <Label className="text-[10px]">TURN credential (static)</Label>
+                <Label className="text-[10px]">TURN 凭据（静态）</Label>
                 <Input
                   value={t.ice_credential ?? ''}
                   onChange={(e) => update(idx, { ice_credential: e.target.value })}
@@ -201,7 +201,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
                 />
               </div>
               <div className="md:col-span-4">
-                <Label className="text-[10px]">TURN REST secret (coturn)</Label>
+                <Label className="text-[10px]">TURN REST 密钥（coturn）</Label>
                 <Input
                   type="password"
                   value={t.ice_auth_secret ?? ''}
@@ -211,7 +211,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
                 />
               </div>
               <div className="md:col-span-3">
-                <Label className="text-[10px]">REST TTL (sec)</Label>
+                <Label className="text-[10px]">REST 有效期（秒）</Label>
                 <Input
                   type="number"
                   value={t.ice_auth_ttl_sec ?? 86400}
@@ -226,7 +226,7 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
                     checked={t.prefers_pcma ?? false}
                     onChange={(e) => update(idx, { prefers_pcma: e.target.checked })}
                   />
-                  prefer PCMA
+                  优先 PCMA
                 </label>
               </div>
             </div>
@@ -239,13 +239,13 @@ export function TransportListEditor({ value, onChange, defaultPort = 5060 }: Tra
               onClick={() => remove(idx)}
               className="text-xs"
             >
-              Remove
+              移除
             </Button>
           </div>
         </div>
       ))}
       <Button type="button" variant="outline" size="sm" onClick={add} className="w-fit text-xs">
-        + Add transport
+        + 添加传输方式
       </Button>
     </div>
   )

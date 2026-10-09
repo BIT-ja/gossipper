@@ -12,11 +12,11 @@ type Props = {
 export function ThemeToggle({ value, onChange, className }: Props) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <span className="text-muted-foreground text-xs font-medium">Theme</span>
+      <span className="text-muted-foreground text-xs font-medium">主题</span>
       <div
         className="border-border bg-muted/30 inline-flex rounded-md border p-0.5"
         role="group"
-        aria-label="Color theme"
+        aria-label="颜色主题"
       >
         <button
           type="button"
@@ -28,7 +28,7 @@ export function ThemeToggle({ value, onChange, className }: Props) {
               : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          Light
+          浅色
         </button>
         <button
           type="button"
@@ -40,7 +40,7 @@ export function ThemeToggle({ value, onChange, className }: Props) {
               : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          Dark
+          深色
         </button>
       </div>
     </div>

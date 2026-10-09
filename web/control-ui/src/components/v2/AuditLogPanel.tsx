@@ -1,3 +1,4 @@
+import { formatTimestamp } from '@/lib/time'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { listAudit, type AuditEntry } from '@/api/v2'
@@ -63,10 +64,10 @@ export function AuditLogPanel({
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-sm">Audit log</CardTitle>
+        <CardTitle className="text-sm">审计日志</CardTitle>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="xs" onClick={() => void loadAudit()} disabled={loading}>
-            Refresh
+            刷新
           </Button>
           <span className="text-muted-foreground text-[11px]">
             {filtered.length}/{audit.length}
@@ -75,35 +76,35 @@ export function AuditLogPanel({
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground mb-2 text-xs">
-          Mutating actions performed via <code>/api/v2</code> (limit {limit}).
+          变更操作经由 <code>/api/v2</code> （最多 {limit}).
         </p>
         <Input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="filter by action / user / target…"
+          placeholder="按操作、用户或目标筛选…"
           className="mb-2 h-7 max-w-md text-xs"
         />
         {error ? <p className="text-destructive mb-2 text-xs">{error}</p> : null}
         {filtered.length === 0 ? (
           <p className="text-muted-foreground text-xs">
-            {audit.length === 0 ? 'No entries yet.' : 'No entries match the filter.'}
+            {audit.length === 0 ? '暂无记录。' : '没有符合筛选条件的记录。'}
           </p>
         ) : (
           <div className="max-h-[32rem] overflow-auto rounded-md border">
             <table className="w-full text-xs">
               <thead className="text-muted-foreground bg-muted/30 sticky top-0">
                 <tr>
-                  <th className="border-border border-b px-2 py-1 text-left">Time</th>
-                  <th className="border-border border-b px-2 py-1 text-left">User</th>
-                  <th className="border-border border-b px-2 py-1 text-left">Action</th>
-                  <th className="border-border border-b px-2 py-1 text-left">Target</th>
+                  <th className="border-border border-b px-2 py-1 text-left">时间</th>
+                  <th className="border-border border-b px-2 py-1 text-left">用户</th>
+                  <th className="border-border border-b px-2 py-1 text-left">操作</th>
+                  <th className="border-border border-b px-2 py-1 text-left">目标</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((e) => (
                   <tr key={e.id} className="border-border border-b">
                     <td className="px-2 py-1 font-mono whitespace-nowrap">
-                      {new Date(e.ts).toLocaleString()}
+                      {formatTimestamp(e.ts)}
                     </td>
                     <td className="px-2 py-1">{e.username || '—'}</td>
                     <td className="px-2 py-1 font-mono">{e.action}</td>

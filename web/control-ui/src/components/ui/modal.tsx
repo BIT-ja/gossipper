@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 export type ModalProps = {
   open: boolean
@@ -7,7 +7,7 @@ export type ModalProps = {
   description?: string
   children: ReactNode
   footer?: ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'trace'
 }
 
 const SIZE: Record<NonNullable<ModalProps['size']>, string> = {
@@ -15,23 +15,36 @@ const SIZE: Record<NonNullable<ModalProps['size']>, string> = {
   md: 'max-w-xl',
   lg: 'max-w-3xl',
   xl: 'max-w-5xl',
+  trace: 'max-w-none w-[94vw]',
 }
 
 export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+  const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
+    const previous=document.activeElement as HTMLElement|null
+    const selector='button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]'
+    const timer=window.setTimeout(()=>box.current?.querySelector<HTMLElement>(selector)?.focus(),0)
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (Array.from(document.querySelectorAll('[role=dialog]')).at(-1) !== box.current || !box.current?.contains(document.activeElement)) return
+      if (e.key === 'Escape') {e.stopImmediatePropagation();onClose()}
+      if(e.key==='Tab'){
+        const nodes=Array.from(box.current.querySelectorAll<HTMLElement>(selector)).filter(n=>n.getClientRects().length)
+        const first=nodes[0],last=nodes.at(-1)
+        if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}
+        else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}
+      }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    return () => {window.clearTimeout(timer);window.removeEventListener('keydown',onKey);previous?.focus()}
+  }, [open])
 
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
       <div
+        ref={box}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -48,7 +61,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             type="button"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground -mr-1 -mt-1 rounded-md px-2 py-1 text-xs"
-            aria-label="Close"
+            aria-label="关闭"
           >
             ✕
           </button>

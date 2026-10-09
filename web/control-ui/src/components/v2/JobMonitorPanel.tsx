@@ -1,3 +1,4 @@
+import { displayLabel } from '@/lib/displayLabel'
 import { artifactURL, getJob, jobEventsURL, listClients, listRecordings, listServers, stopJob, type Job, type JobArtifact, type Recording } from '@/api/v2'
 import { JobStatsChart } from '@/components/v2/JobStatsChart'
 import { SummaryKPICards } from '@/components/v2/SummaryKPI'
@@ -158,29 +159,29 @@ export function JobMonitorPanel({
   }
 
   if (!job) {
-    return <p className="text-muted-foreground text-xs">Loading job {jobId.slice(0, 8)}…</p>
+    return <p className="text-muted-foreground text-xs">加载任务 {jobId.slice(0, 8)}…</p>
   }
 
   return (
     <div className={`border-border flex flex-col gap-3 rounded-lg border p-3 ${compact ? 'text-xs' : ''}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="font-mono text-xs">
-          <span className="text-muted-foreground">Job</span> {job.id.slice(0, 12)}…{' '}
-          <span className="rounded bg-muted px-1.5 py-0.5">{job.status}</span>
+          <span className="text-muted-foreground">任务</span> {job.id.slice(0, 12)}…{' '}
+          <span className="rounded bg-muted px-1.5 py-0.5">{displayLabel(job.status)}</span>
         </div>
         <div className="flex flex-wrap gap-1">
           {running ? (
             <Button type="button" size="xs" variant="outline" onClick={onStopClick}>
-              Stop
+              停止
             </Button>
           ) : null}
           {job.status === 'succeeded' && onOpenReports ? (
             <Button type="button" size="xs" variant="outline" onClick={() => onOpenReports(jobId)}>
-              Open report
+              查看报告
             </Button>
           ) : null}
           <Button type="button" size="xs" variant="ghost" onClick={() => void refresh()}>
-            Refresh
+            刷新
           </Button>
         </div>
       </div>
@@ -190,14 +191,14 @@ export function JobMonitorPanel({
       {error ? <p className="text-destructive text-[11px]">{error}</p> : null}
       {!compact ? (
         <pre className="bg-muted/40 max-h-32 overflow-auto rounded p-2 font-mono text-[10px] whitespace-pre-wrap">
-          {lines.length === 0 ? 'waiting for worker events…' : lines.slice(-15).join('\n')}
+          {lines.length === 0 ? '等待任务事件…' : lines.slice(-15).join('\n')}
         </pre>
       ) : null}
       {recordings.length > 0 ? (
-        <p className="text-muted-foreground text-[11px]">{recordings.length} recording(s) available</p>
+        <p className="text-muted-foreground text-[11px]">{recordings.length} 个录音可用</p>
       ) : null}
       {artifacts.length > 0 ? (
-        <p className="text-muted-foreground text-[11px]">{artifacts.length} artifact(s)</p>
+        <p className="text-muted-foreground text-[11px]">{artifacts.length} 个产物</p>
       ) : null}
     </div>
   )

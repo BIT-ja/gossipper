@@ -29,7 +29,7 @@ export function EngineOverridesForm({ value, onChange, enabled, onEnabledChange 
     <div className="flex flex-col gap-2">
       <label className="flex items-center gap-2 text-xs font-medium">
         <input type="checkbox" checked={enabled} onChange={(e) => onEnabledChange(e.target.checked)} />
-        Engine overrides (POST /jobs engine JSON)
+        引擎参数覆盖（POST /jobs engine JSON）
       </label>
       {enabled ? (
         <div className="ml-5 grid grid-cols-1 gap-2 md:grid-cols-2">

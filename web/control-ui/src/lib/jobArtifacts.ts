@@ -6,11 +6,11 @@ export function jobArtifactRelPath(jobId: string, filename: string): string {
 export type ReportArtifactKind = 'summary' | 'report_html' | 'report_pdf' | 'log' | 'stats'
 
 export const REPORT_KIND_LABEL: Record<ReportArtifactKind, string> = {
-  summary: 'Summary JSON',
-  report_html: 'HTML report',
-  report_pdf: 'PDF report',
-  log: 'Worker log',
-  stats: 'Stats JSONL',
+  summary: '汇总 JSON',
+  report_html: 'HTML 报告',
+  report_pdf: 'PDF 报告',
+  log: '执行日志',
+  stats: '统计 JSONL',
 }
 
 export function pickLatestArtifact(artifacts: { kind: string; path: string }[], kind: string) {

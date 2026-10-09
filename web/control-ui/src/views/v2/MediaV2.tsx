@@ -1,3 +1,4 @@
+import { formatTimestamp } from '@/lib/time'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
@@ -69,7 +70,7 @@ export function MediaV2({ bearer, busy, run, errorText }: MediaV2Props) {
     if (!window.confirm(`Delete ${row.name}?`)) return
     void run(async () => {
       await deleteMedia(kind, row.name, { bearer })
-      toast('Media deleted', 'success')
+      toast('媒体已删除', 'success')
       await refresh()
     })
   }
@@ -81,10 +82,10 @@ export function MediaV2({ bearer, busy, run, errorText }: MediaV2Props) {
 
   const columns: Column<MediaAsset>[] = useMemo(
     () => [
-      { key: 'name', header: 'Name', render: (r) => r.name },
+      { key: 'name', header: "名称", render: (r) => r.name },
       {
         key: 'refs',
-        header: 'Used in',
+        header: "引用位置",
         render: (r) => {
           const refs = refsFor(r.name)
           return refs.length ? (
@@ -96,23 +97,23 @@ export function MediaV2({ bearer, busy, run, errorText }: MediaV2Props) {
       },
       {
         key: 'size',
-        header: 'Size',
+        header: "大小",
         align: 'right',
         render: (r) => <span className="font-mono text-xs">{fmtSize(r.size_bytes)}</span>,
       },
       {
         key: 'mtime',
-        header: 'Modified',
-        render: (r) => new Date(r.mod_time).toLocaleString(),
+        header: "修改时间",
+        render: (r) => formatTimestamp(r.mod_time),
       },
       {
         key: 'preview',
-        header: 'Preview',
+        header: "预览",
         render: (r) =>
           r.kind === 'wav' ? (
             <audio controls className="h-7" src={downloadMediaURL('wav', r.name, bearer)} />
           ) : (
-            <span className="text-muted-foreground text-xs">PCAP download only</span>
+            <span className="text-muted-foreground text-xs">PCAP 仅支持下载</span>
           ),
       },
       {
@@ -126,10 +127,10 @@ export function MediaV2({ bearer, busy, run, errorText }: MediaV2Props) {
               download={r.name}
               className="bg-background border-border hover:bg-muted rounded-md border px-2.5 py-1 text-xs"
             >
-              Download
+              下载
             </a>
             <Button type="button" variant="destructive" size="xs" onClick={() => onDelete(r)}>
-              Delete
+              删除
             </Button>
           </div>
         ),
@@ -155,15 +156,15 @@ export function MediaV2({ bearer, busy, run, errorText }: MediaV2Props) {
     >
       {dragOver ? (
         <div className="border-primary bg-primary/10 pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed">
-          <span className="text-primary text-sm font-medium">Drop {kind.toUpperCase()} file to upload</span>
+          <span className="text-primary text-sm font-medium">拖入 {kind.toUpperCase()} 文件以上传</span>
         </div>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Media library</h2>
+          <h2 className="text-sm font-semibold">媒体库</h2>
           <p className="text-muted-foreground text-xs">
-            WAV files for media playback and PCAP files for replay tests. Drag-and-drop onto this page to upload.
+            WAV 用于媒体播放，PCAP 用于回放测试。可将文件拖到此页上传。
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -191,10 +192,10 @@ export function MediaV2({ bearer, busy, run, errorText }: MediaV2Props) {
             }}
           />
           <Button type="button" size="sm" onClick={() => fileRef.current?.click()}>
-            Upload {kind.toUpperCase()}
+            上传 {kind.toUpperCase()}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => void run(() => refresh())}>
-            Refresh
+            刷新
           </Button>
         </div>
       </div>

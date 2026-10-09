@@ -29,21 +29,22 @@ var InviteMediaScenarios = []string{
 
 // Request describes a sipstress-style load run submitted via POST /api/v2/load-test/run.
 type Request struct {
-	ID                    string  `json:"id,omitempty"`
-	Director              string  `json:"director"`
-	ScenarioID            string  `json:"scenario_id,omitempty"`
-	TotalCalls            int     `json:"total_calls"`
-	Rate                  float64 `json:"rate"`
-	MaxConcurrent         int     `json:"max_concurrent"`
-	RunTimeoutMs          int     `json:"run_timeout_ms,omitempty"`
-	SipFrom               string  `json:"sip_from,omitempty"`
-	SipPAI                string  `json:"sip_pai,omitempty"`
-	SipProvider           string  `json:"sip_provider,omitempty"`
-	RecordWAV             bool    `json:"record_wav,omitempty"`
-	RecordWAVDuplex       bool    `json:"record_wav_duplex,omitempty"`
-	HealthEnabled         bool    `json:"health_enabled,omitempty"`
-	HealthMinSuccessRatio float64 `json:"health_min_success_ratio,omitempty"`
-	HealthMaxFailedCalls  int     `json:"health_max_failed_calls,omitempty"`
+	SIPCapture            supervisor.CaptureConfig `json:"sip_capture,omitempty"`
+	ID                    string                   `json:"id,omitempty"`
+	Director              string                   `json:"director"`
+	ScenarioID            string                   `json:"scenario_id,omitempty"`
+	TotalCalls            int                      `json:"total_calls"`
+	Rate                  float64                  `json:"rate"`
+	MaxConcurrent         int                      `json:"max_concurrent"`
+	RunTimeoutMs          int                      `json:"run_timeout_ms,omitempty"`
+	SipFrom               string                   `json:"sip_from,omitempty"`
+	SipPAI                string                   `json:"sip_pai,omitempty"`
+	SipProvider           string                   `json:"sip_provider,omitempty"`
+	RecordWAV             bool                     `json:"record_wav,omitempty"`
+	RecordWAVDuplex       bool                     `json:"record_wav_duplex,omitempty"`
+	HealthEnabled         bool                     `json:"health_enabled,omitempty"`
+	HealthMinSuccessRatio float64                  `json:"health_min_success_ratio,omitempty"`
+	HealthMaxFailedCalls  int                      `json:"health_max_failed_calls,omitempty"`
 }
 
 // Director is a parsed SBC/director endpoint.
@@ -144,11 +145,11 @@ func validScenario(id string) bool {
 // BuildEngine returns worker engine overrides for the request.
 func (req Request) BuildEngine(dir Director) map[string]any {
 	engine := map[string]any{
-		"total_calls":     req.TotalCalls,
-		"rate":            req.Rate,
-		"max_concurrent":  req.MaxConcurrent,
-		"remote_host":     dir.Host,
-		"remote_port":     dir.Port,
+		"total_calls":    req.TotalCalls,
+		"rate":           req.Rate,
+		"max_concurrent": req.MaxConcurrent,
+		"remote_host":    dir.Host,
+		"remote_port":    dir.Port,
 	}
 	if req.RunTimeoutMs > 0 {
 		engine["global_timeout_ms"] = req.RunTimeoutMs
@@ -254,6 +255,7 @@ func Start(ctx context.Context, store *uistore.Store, reg *supervisor.Registry, 
 		ScenarioID:      scID,
 		ArtifactsDir:    artifactsDir,
 		RecordWAV:       req.RecordWAV,
+		SIPCapture:      req.SIPCapture,
 		RecordWAVDuplex: req.RecordWAV && req.RecordWAVDuplex,
 		Engine:          engine,
 	}

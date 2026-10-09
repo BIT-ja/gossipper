@@ -7,24 +7,24 @@ const HOMER_URL = 'https://github.com/sipcapture/homer'
 
 const FEATURES: { title: string; body: string }[] = [
   {
-    title: 'SIP load + UAS engine',
-    body: 'UAC / UAS / management profiles over UDP, TCP, TLS and WebSocket (plain or secure). Multiple listeners per profile, pluggable scenarios, per-call media (PCMU/PCMA), SRTP via SDES.',
+    title: "SIP 压测与 UAS 引擎",
+    body: '支持 UDP、TCP、TLS 及 WebSocket 的 UAC/UAS 配置。每个配置可包含多个监听地址，支持自定义场景、逐通话媒体（PCMU/PCMA）及 SDES SRTP。',
   },
   {
-    title: 'Admin console (api v2)',
-    body: 'This UI talks to /api/v2/* — JSON profiles in profiles/servers, profiles/clients, scenarios in scenarios/, WAV / PCAP in media/, jobs and audit log in settings.sqlite.',
+    title: "管理控制台（API v2）",
+    body: '界面通过 /api/v2/* 提供管理功能。配置、场景和媒体分别存储在 profiles/、scenarios/ 和 media/，任务与审计日志存储在 settings.sqlite。',
   },
   {
-    title: 'Supervisor + jobs',
-    body: 'The master process spawns each Start as an isolated `gossipper worker --spec` child, captures stdout/stderr as artifacts, and exposes lifecycle + recordings to the UI.',
+    title: "任务管理与调度",
+    body: '每次启动均创建独立任务子进程，保存输出日志，并在界面提供任务状态与录音。',
   },
   {
-    title: 'Observability',
-    body: 'Per-job WAV recording, summary.json, stats.jsonl, HEP forwarding (HOMER), optional OTLP event export — all wired through the Jobs page.',
+    title: "可观测性",
+    body: '支持逐任务 WAV 录音、汇总及统计，提供 HEP 转发（HOMER）及可选 OTLP 事件导出，可在任务页面查看。',
   },
   {
-    title: 'Auth & audit',
-    body: 'Optional internal SQLite + JWT users (role admin/user). Every mutating call is written to the audit_log table and surfaced on the Audit page.',
+    title: "认证与审计",
+    body: '支持 SQLite 与 JWT 内部用户认证。变更操作记录在 audit_log 表，可在审计页面查看。',
   },
 ]
 
@@ -64,12 +64,9 @@ export function AboutV2({ bearer }: AboutV2Props) {
   return (
     <section className="flex max-w-3xl flex-col gap-4">
       <header className="flex flex-col gap-1">
-        <h2 className="text-base font-semibold tracking-tight">About Gossipper</h2>
+        <h2 className="text-base font-semibold tracking-tight">关于 Gossipper</h2>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Gossipper is a high-performance SIP traffic generator and call simulator built for
-          load-testing, scenario replay, NOC drills and integration tests. It speaks SIP over
-          UDP / TCP / TLS / WS / WSS, simulates real RTP media flows, and reports everything
-          through this admin console and via HEP into{' '}
+          Gossipper 是 SIP 压测与通话模拟工具，支持场景回放、运维演练及集成测试。支持 UDP / TCP / TLS / WS / WSS 和真实 RTP 媒体流，可在本控制台查看结果，并通过 HEP 上报到{' '}
           <a
             href={HOMER_URL}
             target="_blank"
@@ -84,15 +81,15 @@ export function AboutV2({ bearer }: AboutV2Props) {
 
       <div className="border-border bg-card grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
         <Kv k="Version" v={health?.version ?? '…'} />
-        <Kv k="Auth mode" v={health?.auth ?? '…'} />
+        <Kv k="认证方式" v={health?.auth ?? '…'} />
         <Kv k="API" v="/api/v2/* (admin console)" />
         <Kv k="Status" v={err ? `error: ${err}` : health?.status ?? '…'} />
       </div>
 
       <div className="border-border bg-card rounded-md border p-3">
-        <h3 className="mb-1 text-sm font-medium">Built-in scenarios</h3>
+        <h3 className="mb-1 text-sm font-medium">内置场景</h3>
         <p className="text-muted-foreground mb-2 text-xs">
-          Engine-baked XML (read-only) — selectable in profile / job forms alongside custom scenarios.
+          引擎内置 XML（只读），可在配置和任务表单中与自定义场景一同选择。
         </p>
         <div className="flex flex-wrap gap-1">
           {BUILTIN_SCENARIOS.map((id) => (
@@ -131,7 +128,7 @@ export function AboutV2({ bearer }: AboutV2Props) {
           rel="noreferrer noopener"
           className="text-primary underline-offset-2 hover:underline"
         >
-          changelog
+          更新日志
         </a>
         <span>·</span>
         <a
@@ -140,7 +137,7 @@ export function AboutV2({ bearer }: AboutV2Props) {
           rel="noreferrer noopener"
           className="text-primary underline-offset-2 hover:underline"
         >
-          docs
+          文档
         </a>
         <span>·</span>
         <a

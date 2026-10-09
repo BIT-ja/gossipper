@@ -1,3 +1,6 @@
+import { formatTimestamp } from '@/lib/time'
+import { displayLabel } from '@/lib/displayLabel'
+import { sipTraceRequest, sipTraceURL, type SIPCaptureStatus } from '@/api/sipTrace'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
@@ -75,6 +78,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
     profile_kind: 'server' | 'client'
     profile_id: string
     scenario_id: string
+    sip_capture: boolean
     record_wav: boolean
     record_wav_duplex: boolean
   }>({
@@ -83,6 +87,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
     profile_id: '',
     scenario_id: '',
     record_wav: false,
+ sip_capture: false,
     record_wav_duplex: false,
   })
   const [detail, setDetail] = useState<
@@ -185,6 +190,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
       profile_id: '',
       scenario_id: '',
       record_wav: false,
+ sip_capture: false,
       record_wav_duplex: false,
       ...prefill,
     })
@@ -201,18 +207,19 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
           profile_id: draft.profile_id,
           scenario_id: draft.scenario_id || undefined,
           record_wav: draft.record_wav || undefined,
+ sip_capture: {enabled:draft.sip_capture,retention_days:7},
           record_wav_duplex: draft.record_wav && draft.record_wav_duplex ? true : undefined,
           engine: engineEnabled ? buildEnginePayload(engineOverrides) : undefined,
         },
         { bearer },
       )
       setStartOpen(false)
-      toast('Job started', 'success')
+      toast('任务已启动', 'success')
       await refresh()
     })
   }
 
-  const onRestart = (job: Job) => {
+  const onRestart = async (job: Job) => {
     if (!job.profile_id || !job.profile_kind) return
     if (job.profile_kind === 'tool') {
       let args: Record<string, unknown> = {}
@@ -220,18 +227,20 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
         try {
           args = JSON.parse(job.args_json) as Record<string, unknown>
         } catch {
-          toast('Could not parse tool args for restart', 'error')
+          toast('无法解析重启任务参数', 'error')
           return
         }
       }
       void run(async () => {
         await runTool(job.profile_id!, { args }, { bearer })
-        toast('Tool job restarted', 'success')
+        toast('工具任务已重新启动', 'success')
         await refresh()
       })
       return
     }
+    const capture = await sipTraceRequest<SIPCaptureStatus>(sipTraceURL(job.id,'sip-capture'),bearer).catch(()=>undefined)
     openStartModal({
+      sip_capture: capture?.enabled ?? false,
       profile_kind: job.profile_kind as 'server' | 'client',
       profile_id: job.profile_id,
       scenario_id: job.scenario_id ?? '',
@@ -241,10 +250,10 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
   const onStopAllRunning = () => {
     const running = mergedRows.filter((j) => j.status === 'running' || j.status === 'pending')
     if (running.length === 0) return
-    if (!window.confirm(`Stop ${running.length} running job(s)?`)) return
+    if (!window.confirm(`停止 ${running.length} 个运行中的任务？`)) return
     void run(async () => {
       for (const j of running) await stopJob(j.id, { bearer })
-      toast('Stop requested for all running jobs', 'info')
+      toast('已请求停止全部运行任务', 'info')
       await refresh()
     })
   }
@@ -252,15 +261,15 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
   const onStop = (id: string) => {
     void run(async () => {
       await stopJob(id, { bearer })
-      toast('Stop requested', 'info')
+      toast('已请求停止任务', 'info')
       await refresh()
     })
   }
   const onDelete = (id: string) => {
-    if (!window.confirm(`Delete job ${id}?`)) return
+    if (!window.confirm(`删除任务 ${id}？`)) return
     void run(async () => {
       await deleteJobV2(id, { bearer })
-      toast('Job deleted', 'success')
+      toast('任务已删除', 'success')
       await refresh()
     })
   }
@@ -278,7 +287,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
     () => [
       {
         key: 'id',
-        header: 'Job',
+        header: '任务',
         render: (r) => (
           <button
             type="button"
@@ -291,10 +300,10 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
       },
       {
         key: 'profile',
-        header: 'Profile',
+        header: '配置',
         render: (r) => (
           <span className="text-xs">
-            <code>{r.profile_kind ?? '?'}</code>
+            <code>{displayLabel(r.profile_kind)}</code>
             {r.profile_kind === 'tool' ? (
               <> · {r.profile_id ?? '—'}</>
             ) : (
@@ -305,7 +314,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
       },
       {
         key: 'scenario',
-        header: 'Scenario',
+        header: '场景',
         render: (r) =>
           r.profile_kind === 'tool' ? (
             <span className="text-muted-foreground text-xs">—</span>
@@ -317,13 +326,13 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
       },
       {
         key: 'status',
-        header: 'Status',
+        header: '状态',
         render: (r) => (
           <span className="inline-flex items-center gap-1">
             <span
               className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_BADGE[r.status] ?? ''}`}
             >
-              {r.status}
+              {displayLabel(r.status)}
             </span>
             {(() => {
               if (r.profile_kind === 'tool') return null
@@ -340,8 +349,8 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
       },
       {
         key: 'created',
-        header: 'Created',
-        render: (r) => new Date(r.created_at).toLocaleString(),
+        header: '创建时间',
+        render: (r) => formatTimestamp(r.created_at),
       },
       {
         key: 'actions',
@@ -351,16 +360,16 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
           <div className="flex justify-end gap-1">
             {r.status === 'failed' || r.status === 'stopped' ? (
               <Button type="button" variant="outline" size="xs" onClick={() => onRestart(r)}>
-                Restart
+                重新运行
               </Button>
             ) : null}
             {r.status === 'running' || r.status === 'pending' ? (
               <Button type="button" variant="outline" size="xs" onClick={() => onStop(r.id)}>
-                Stop
+                停止
               </Button>
             ) : null}
             <Button type="button" variant="destructive" size="xs" onClick={() => onDelete(r.id)}>
-              Delete
+              删除
             </Button>
           </div>
         ),
@@ -373,21 +382,20 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Jobs</h2>
+          <h2 className="text-sm font-semibold">任务</h2>
           <p className="text-muted-foreground text-xs">
-            Isolated <code>gossipper worker</code> runs from client/server profiles (including Load test wizard
-            jobs). Status via live WebSocket{connected ? ' (connected)' : ' (reconnecting…)'}.
+            按客户端或服务端配置独立运行任务，包括压测向导创建的任务。实时状态连接：{connected ? '已连接' : '重新连接中…'}。
           </p>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => void run(() => refresh())}>
-            Refresh
+            刷新
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={onStopAllRunning}>
-            Stop all running
+            停止全部运行任务
           </Button>
           <Button type="button" size="sm" onClick={() => openStartModal()}>
-            + Start job
+            + 新建任务
           </Button>
         </div>
       </div>
@@ -411,7 +419,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                   : 'border-border bg-background hover:bg-muted border'
               }`}
             >
-              {s} <span className="text-[10px] opacity-75">({statusCounts[s] ?? 0})</span>
+              {displayLabel(s)} <span className="text-[10px] opacity-75">({statusCounts[s] ?? 0})</span>
             </button>
           ))}
         </div>
@@ -427,14 +435,14 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                   : 'border-border bg-background hover:bg-muted border'
               }`}
             >
-              {k}
+              {displayLabel(k)}
             </button>
           ))}
         </div>
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="filter by id / profile / scenario…"
+          placeholder="按任务 ID、配置或场景筛选…"
           className="h-7 max-w-xs text-xs"
         />
         <span className="text-muted-foreground text-[11px]">
@@ -447,18 +455,18 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
         columns={columns}
         rowKey={(r) => r.id}
         loading={busy && rows.length === 0}
-        empty={rows.length === 0 ? 'No jobs yet.' : 'No jobs match the current filter.'}
+        empty={rows.length === 0 ? '暂无任务。' : '没有符合筛选条件的任务。'}
       />
 
       <Modal
         open={startOpen}
         onClose={() => setStartOpen(false)}
         size="md"
-        title="Start a new job"
+        title="新建任务"
         footer={
           <>
             <Button type="button" variant="outline" size="sm" onClick={() => setStartOpen(false)}>
-              Cancel
+              取消
             </Button>
             <Button
               type="button"
@@ -466,7 +474,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
               onClick={onStart}
               disabled={!draft.profile_id || busy || startBlocked.blocked || !!jobIdError}
             >
-              Start
+              启动
             </Button>
           </>
         }
@@ -474,29 +482,29 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
         <div className="flex flex-col gap-3">
           {startBlocked.blocked ? (
             <div className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border px-2 py-1.5 text-[11px]">
-              Port conflict — resolve overlapping binds before starting:{' '}
+              端口冲突，请先解决重复监听地址：{' '}
               {startBlocked.details.join(', ')}
             </div>
           ) : null}
           <div>
-            <Label className="text-xs">Job ID (optional)</Label>
+            <Label className="text-xs">任务 ID（可选）</Label>
             <Input
               value={draft.job_id}
               onChange={(e) => setDraft({ ...draft, job_id: e.target.value })}
-              placeholder="auto-generated UUID if empty"
+              placeholder="留空时自动生成 UUID"
               className={`mt-1 font-mono text-sm ${jobIdError ? 'border-destructive/60' : ''}`}
             />
             {jobIdError ? (
               <p className="text-destructive mt-1 text-[11px]">{jobIdError}</p>
             ) : (
               <p className="text-muted-foreground mt-1 text-[11px]">
-                Pin a readable name for artifacts under <code>artifacts/jobs/&lt;id&gt;/</code>.
-                Allowed: letters, digits, <code>.</code> <code>_</code> <code>-</code> (max 64).
+                为任务指定易读的 ID，产物保存在 <code>artifacts/jobs/&lt;id&gt;/</code>.
+                允许使用字母、数字、 <code>.</code> <code>_</code> <code>-</code> （最多 64 个字符）。
               </p>
             )}
           </div>
           <div>
-            <Label className="text-xs">Profile kind</Label>
+            <Label className="text-xs">配置类型</Label>
             <div className="mt-1 flex gap-2">
               {(['server', 'client'] as const).map((k) => (
                 <button
@@ -509,19 +517,19 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                       : 'border-border bg-background hover:bg-muted border'
                   }`}
                 >
-                  {k}
+                  {displayLabel(k)}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <Label className="text-xs">Profile</Label>
+            <Label className="text-xs">配置</Label>
             <select
               value={draft.profile_id}
               onChange={(e) => setDraft({ ...draft, profile_id: e.target.value })}
               className="border-input bg-background mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
             >
-              <option value="">— select —</option>
+              <option value="">— 请选择 —</option>
               {candidateProfiles.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.id} — {p.name}
@@ -530,7 +538,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
             </select>
           </div>
           <div>
-            <Label className="text-xs">Scenario override (optional)</Label>
+            <Label className="text-xs">覆盖场景（可选）</Label>
             <ScenarioSelect
               value={draft.scenario_id}
               onChange={(scenario_id) => setDraft({ ...draft, scenario_id })}
@@ -538,7 +546,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
               builtins={builtins}
               roleFilter={scenarioRoleFilter}
               allowEmpty
-              emptyLabel="(use profile default)"
+              emptyLabel="使用配置默认场景"
             />
             <ScenarioPreview
               scenarioId={draft.scenario_id}
@@ -553,7 +561,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                 checked={draft.record_wav}
                 onChange={(e) => setDraft({ ...draft, record_wav: e.target.checked })}
               />
-              Record received RTP to WAV (one file per call, decoded G.711)
+              将收到的 RTP 录制为 WAV（每通一个文件，G.711 解码）
             </label>
             {draft.record_wav ? (
               <label className="text-muted-foreground ml-5 flex items-center gap-2 text-xs">
@@ -562,10 +570,11 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                   checked={draft.record_wav_duplex}
                   onChange={(e) => setDraft({ ...draft, record_wav_duplex: e.target.checked })}
                 />
-                Stereo (L=sent, R=received)
+                双声道（左：发送，右：接收）
               </label>
             ) : null}
           </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.sip_capture} onChange={e=>setDraft({...draft,sip_capture:e.target.checked})} />开启 SIP 信令采集（UDP，保留 7 天，每 10,000 通一个分片）</label>
           <EngineOverridesForm
             value={engineOverrides}
             onChange={setEngineOverrides}
@@ -582,7 +591,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
           setDetailTab('info')
         }}
         size="lg"
-        title={detail ? `Job · ${detail.job.id}` : 'Job'}
+        title={detail ? `任务 · ${detail.job.id}` : '任务'}
       >
         {detail ? (
           <div className="flex flex-col gap-3 text-xs">
@@ -594,7 +603,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                   onClick={() => setDetailTab(t)}
                   className={`rounded px-2 py-0.5 text-[11px] ${detailTab === t ? 'bg-primary text-primary-foreground' : 'border border-border'}`}
                 >
-                  {t === 'info' ? 'Details' : 'Report preview'}
+                  {t === 'info' ? '详情' : '报告预览'}
                 </button>
               ))}
             </div>
@@ -604,20 +613,20 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
               <>
             <DescList
               rows={[
-                ['Status', detail.job.status],
-                ['Profile', `${detail.job.profile_kind ?? '?'} / ${detail.job.profile_id ?? '—'}`],
-                ['Scenario', detail.job.profile_kind === 'tool' ? '—' : (detail.job.scenario_id ?? '—')],
-                ['Created', new Date(detail.job.created_at).toLocaleString()],
-                ['Started', detail.job.started_at ? new Date(detail.job.started_at).toLocaleString() : '—'],
-                ['Finished', detail.job.finished_at ? new Date(detail.job.finished_at).toLocaleString() : '—'],
-                ['Exit code', detail.job.exit_code ?? '—'],
+                ['状态', displayLabel(detail.job.status)],
+                ['配置', `${displayLabel(detail.job.profile_kind)} / ${detail.job.profile_id ?? '—'}`],
+                ['场景', detail.job.profile_kind === 'tool' ? '—' : (detail.job.scenario_id ?? '—')],
+                ['创建时间', formatTimestamp(detail.job.created_at)],
+                ['开始时间', detail.job.started_at ? formatTimestamp(detail.job.started_at) : '—'],
+                ['结束时间', detail.job.finished_at ? formatTimestamp(detail.job.finished_at) : '—'],
+                ['退出码', detail.job.exit_code ?? '—'],
                 ['PID', detail.job.pid ?? '—'],
-                ['Artifacts dir', detail.job.artifacts_dir ?? '—'],
-                ['Error', detail.job.error || '—'],
+                ['产物目录', detail.job.artifacts_dir ?? '—'],
+                ['错误', detail.job.error || '—'],
               ]}
             />
             <div>
-              <div className="text-muted-foreground mb-1 font-medium">Args</div>
+              <div className="text-muted-foreground mb-1 font-medium">参数</div>
               <pre className="bg-muted/40 max-h-32 overflow-auto rounded p-2 font-mono text-[11px]">
                 {detail.job.args_json ?? '{}'}
               </pre>
@@ -631,17 +640,17 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
               onGenerated={() => onInspect(detail.job.id)}
             />
             <div>
-              <div className="text-muted-foreground mb-1 font-medium">All artifacts ({detail.artifacts.length})</div>
+              <div className="text-muted-foreground mb-1 font-medium">全部产物（{detail.artifacts.length}）</div>
               <ArtifactLinks jobId={detail.job.id} artifacts={detail.artifacts} bearer={bearer} />
             </div>
             <JobStatsTail job={detail.job} bearer={bearer} />
             <div>
               <div className="text-muted-foreground mb-1 font-medium">
-                Recordings ({detail.recordings.length})
+                录音（{detail.recordings.length}）
               </div>
               {detail.recordings.length === 0 ? (
                 <p className="text-muted-foreground">
-                  No WAV files yet. Enable per-call recording when starting a job.
+                  暂无 WAV 文件。创建任务时可开启逐通话录音。
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -659,7 +668,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                         download={r.name}
                         className="bg-background border-border hover:bg-muted rounded-md border px-2 py-0.5 text-[11px]"
                       >
-                        Download
+                        下载
                       </a>
                     </li>
                   ))}
@@ -668,7 +677,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
             </div>
             {detail.job.status === 'failed' || detail.job.status === 'stopped' ? (
               <Button type="button" size="sm" variant="outline" onClick={() => onRestart(detail.job)}>
-                {detail.job.profile_kind === 'tool' ? 'Restart tool job' : 'Restart with same profile'}
+                {detail.job.profile_kind === 'tool' ? '重新运行工具任务' : '使用相同配置重新运行'}
               </Button>
             ) : null}
               </>
@@ -723,7 +732,7 @@ function JobStatsTail({ job, bearer }: { job: Job; bearer?: string }) {
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const reader = res.body?.getReader()
-        if (!reader) throw new Error('no body')
+        if (!reader) throw new Error('服务器未返回响应内容')
         const dec = new TextDecoder()
         let buf = ''
         const pump = (): Promise<void> =>
@@ -765,12 +774,12 @@ function JobStatsTail({ job, bearer }: { job: Job; bearer?: string }) {
 
   return (
     <div>
-      <div className="text-muted-foreground mb-1 font-medium">Worker stats</div>
+      <div className="text-muted-foreground mb-1 font-medium">运行事件</div>
       {showWebRTC ? <WebRTCDiagnosticsStrip lines={lines} iceServers={iceServers} callRecords={callRecords} /> : null}
       <JobStatsChart points={chartPoints} />
       {error ? <p className="text-destructive mt-1 text-[11px]">{error}</p> : null}
       <pre className="bg-muted/40 mt-2 max-h-48 overflow-auto rounded p-2 font-mono text-[10px] whitespace-pre-wrap">
-        {lines.length === 0 ? 'waiting for worker…' : lines.slice(-tailN).join('\n')}
+        {lines.length === 0 ? '等待执行进程…' : lines.slice(-tailN).join('\n')}
       </pre>
     </div>
   )

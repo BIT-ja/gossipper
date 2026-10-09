@@ -1,3 +1,5 @@
+import { formatTimestamp } from '@/lib/time'
+import { displayLabel } from '@/lib/displayLabel'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
@@ -194,7 +196,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
     if (!draft || !historyView) return
     if (
       !window.confirm(
-        'Restore this snapshot into the editor and overwrite the current XML? You must Save to persist.',
+        '是否将快照恢复到编辑器并覆盖当前 XML？点击保存后才会生效。',
       )
     )
       return
@@ -204,7 +206,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
   }
 
   const onDelete = (row: ScenarioMeta) => {
-    if (!window.confirm(`Delete scenario "${row.id}"?`)) return
+    if (!window.confirm(`删除场景 "${row.id}"?`)) return
     void run(async () => {
       await deleteScenarioV2(row.id, { bearer })
       await refresh()
@@ -242,12 +244,12 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
   const columns: Column<ScenarioMeta>[] = useMemo(
     () => [
       { key: 'id', header: 'ID', render: (r) => <code className="text-xs">{r.id}</code> },
-      { key: 'name', header: 'Name', render: (r) => r.name },
-      { key: 'role', header: 'Role', render: (r) => r.role ?? '—' },
+      { key: 'name', header: "名称", render: (r) => r.name },
+      { key: 'role', header: "角色", render: (r) => displayLabel(r.role) },
       {
         key: 'updated',
-        header: 'Updated',
-        render: (r) => (r.updated_at ? new Date(r.updated_at).toLocaleString() : '—'),
+        header: "更新时间",
+        render: (r) => (r.updated_at ? formatTimestamp(r.updated_at) : '—'),
       },
       {
         key: 'actions',
@@ -256,10 +258,10 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
         render: (r) => (
           <div className="flex justify-end gap-1">
             <Button type="button" variant="outline" size="xs" onClick={() => onEdit(r)}>
-              Edit XML
+              编辑 XML
             </Button>
             <Button type="button" variant="destructive" size="xs" onClick={() => onDelete(r)}>
-              Delete
+              删除
             </Button>
           </div>
         ),
@@ -305,10 +307,8 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
   const diffNewXML = historyView?.xml ?? ''
   const diffBaseLabel =
     historyDiffBase === 'current'
-      ? 'current editor'
-      : new Date(
-          history?.find((h) => h.ts === historyDiffBase)?.timestamp ?? '',
-        ).toLocaleString() || historyDiffBase
+      ? '当前编辑内容'
+      : formatTimestamp(history?.find((h) => h.ts === historyDiffBase)?.timestamp) || historyDiffBase
 
   const onViewHistoryEntry = (ts: string) => {
     if (!draft) return
@@ -330,7 +330,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
 
   const onDeleteHistoryEntry = () => {
     if (!draft || !historyView) return
-    if (!window.confirm(`Delete snapshot ${historyView.ts}? This cannot be undone.`)) return
+    if (!window.confirm(`删除快照 ${historyView.ts}？此操作无法撤销。`)) return
     void run(async () => {
       await deleteScenarioHistory(draft.id, historyView.ts, { bearer })
       const r = await listScenarioHistory(draft.id, { bearer })
@@ -399,16 +399,16 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
           className="border-primary/60 bg-primary/5 text-primary pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed text-sm font-medium"
           aria-hidden
         >
-          Drop a .xml scenario here…
+          将 XML 场景文件拖放到此处…
         </div>
       ) : null}
       <PrepToolsPanel bearer={bearer} run={run} compact />
       <PcapImportPanel bearer={bearer} run={run} onImported={() => void run(() => refresh())} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Scenarios</h2>
+          <h2 className="text-sm font-semibold">场景</h2>
           <p className="text-muted-foreground text-xs">
-            SIP XML scenarios. Stored as <code>scenarios/&lt;id&gt;.xml</code> plus a JSON sidecar with metadata. Tip: drag &amp; drop an .xml file anywhere on this panel.
+            SIP XML 场景，存储于 <code>scenarios/&lt;id&gt;.xml</code> 及配套 JSON 元数据文件。可将 XML 文件拖到此面板上传。
           </p>
         </div>
         <div className="flex gap-2">
@@ -424,13 +424,13 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
             }}
           />
           <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-            Upload XML
+            上传 XML
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => void run(() => refresh())}>
-            Refresh
+            刷新
           </Button>
           <Button type="button" size="sm" onClick={onCreate}>
-            + New scenario
+            + 新建场景
           </Button>
         </div>
       </div>
@@ -461,7 +461,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="filter by id / name / description…"
+          placeholder="按 ID、名称或说明筛选…"
           className="h-7 max-w-xs text-xs"
         />
         <span className="text-muted-foreground text-[11px]">
@@ -476,14 +476,14 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
         loading={busy && rows.length === 0}
         empty={
           rows.length === 0
-            ? 'No scenarios yet — create one above or upload an XML.'
-            : 'No scenarios match the current filter.'
+            ? '暂无场景，请点击上方按钮创建或上传 XML。'
+            : '没有符合筛选条件的场景。'
         }
       />
 
       {builtins.length > 0 ? (
         <div className="border-border bg-card rounded-md border p-3">
-          <h3 className="mb-2 text-xs font-medium">Built-in scenarios (read-only)</h3>
+          <h3 className="mb-2 text-xs font-medium">内置场景（只读）</h3>
           <ul className="flex flex-wrap gap-2">
             {builtins.map((b) => (
               <li key={b.id}>
@@ -501,7 +501,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
         open={draft !== null}
         onClose={() => setDraft(null)}
         size="xl"
-        title={createMode ? 'New scenario' : `Edit scenario · ${draft?.id ?? ''}`}
+        title={createMode ? "新建场景" : `编辑场景 · ${draft?.id ?? ''}`}
         footer={
           <>
             {!createMode ? (
@@ -513,11 +513,11 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                 disabled={busy}
                 className="mr-auto"
               >
-                View history
+                查看历史
               </Button>
             ) : null}
             <Button type="button" variant="outline" size="sm" onClick={() => setDraft(null)}>
-              Cancel
+              取消
             </Button>
             <Button
               type="button"
@@ -526,7 +526,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               disabled={busy || !!xmlError || !draft?.id.trim()}
               title={xmlError ?? undefined}
             >
-              {createMode ? 'Create' : 'Save'}
+              {createMode ? "创建" : "保存"}
             </Button>
           </>
         }
@@ -545,7 +545,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                 />
               </div>
               <div>
-                <Label className="text-xs">Name</Label>
+                <Label className="text-xs">名称</Label>
                 <Input
                   value={draft.name}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -553,20 +553,20 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                 />
               </div>
               <div>
-                <Label className="text-xs">Role hint</Label>
+                <Label className="text-xs">角色提示</Label>
                 <select
                   value={draft.role ?? ''}
                   onChange={(e) => setDraft({ ...draft, role: e.target.value || undefined })}
                   className="border-input bg-background mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
                 >
-                  <option value="">(either)</option>
-                  <option value="server">server (UAS)</option>
-                  <option value="client">client (UAC)</option>
+                  <option value="">不限</option>
+                  <option value="server">服务端（UAS）</option>
+                  <option value="client">客户端（UAC）</option>
                 </select>
               </div>
             </div>
             <div>
-              <Label className="text-xs">Description</Label>
+              <Label className="text-xs">说明</Label>
               <Input
                 value={draft.description ?? ''}
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })}
@@ -579,7 +579,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                 <div className="flex flex-wrap items-center gap-2">
                   {mediaWarnings && mediaWarnings.missing.length > 0 ? (
                     <span className="text-warning text-[10px]">
-                      missing media: {mediaWarnings.missing.map((m) => `${m.kind}/${m.name}`).join(', ')}
+                      缺少媒体： {mediaWarnings.missing.map((m) => `${m.kind}/${m.name}`).join(', ')}
                     </span>
                   ) : null}
                   {[...wavNames].slice(0, 8).map((name) => (
@@ -598,10 +598,10 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               </div>
               {xmlError ? (
                 <span className="text-destructive text-[11px]" title={xmlError}>
-                  XML error: {xmlError.length > 80 ? xmlError.slice(0, 80) + '…' : xmlError}
+                  XML 错误： {xmlError.length > 80 ? xmlError.slice(0, 80) + '…' : xmlError}
                 </span>
               ) : (
-                <span className="text-success text-[11px]">XML well-formed</span>
+                <span className="text-success text-[11px]">XML 格式正确</span>
               )}
               <Textarea
                 ref={xmlRef}
@@ -624,11 +624,11 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
           setHistoryView(null)
         }}
         size="xl"
-        title={`History · ${draft?.id ?? ''}`}
+        title={`历史版本 · ${draft?.id ?? ''}`}
         description={
           history && history.length === 0
-            ? 'No prior versions yet. A snapshot is written every time you Save with changed XML.'
-            : 'Click a version to preview. "Restore into editor" loads the archived XML into the current draft — the change is only persisted after Save.'
+            ? '暂无历史版本。修改 XML 并保存时会创建快照。'
+            : '点击版本预览。恢复到编辑器会将历史 XML 加载到当前草稿，点击保存后才会生效。'
         }
         footer={
           <>
@@ -639,7 +639,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               onClick={onDeleteHistoryEntry}
               disabled={!historyView || busy}
             >
-              Delete snapshot
+              删除快照
             </Button>
             <Button
               type="button"
@@ -648,7 +648,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               onClick={onOpenFork}
               disabled={!historyView || busy}
             >
-              Fork as new…
+              复制为新场景…
             </Button>
             <Button
               type="button"
@@ -660,7 +660,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               }}
               className="ml-auto"
             >
-              Close
+              关闭
             </Button>
             <Button
               type="button"
@@ -668,7 +668,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               onClick={onRestoreHistoryEntry}
               disabled={!historyView || busy}
             >
-              Restore into editor
+              恢复到编辑器
             </Button>
             <Button
               type="button"
@@ -677,7 +677,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               onClick={onRestoreOverwrite}
               disabled={!historyView || busy}
             >
-              Restore overwrite
+              覆盖恢复
             </Button>
           </>
         }
@@ -699,7 +699,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                             : 'border-border bg-background hover:bg-muted'
                         }`}
                       >
-                        <div>{new Date(h.timestamp).toLocaleString()}</div>
+                        <div>{formatTimestamp(h.timestamp)}</div>
                         <div className="text-muted-foreground text-[10px]">
                           {h.size_bytes} B
                           {h.meta?.name && h.meta.name !== draft?.id ? ` · ${h.meta.name}` : ''}
@@ -709,7 +709,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                   )
                 })}
                 {history.length === 0 ? (
-                  <li className="text-muted-foreground text-xs">No snapshots yet.</li>
+                  <li className="text-muted-foreground text-xs">暂无历史快照。</li>
                 ) : null}
               </ul>
             </div>
@@ -718,23 +718,23 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                 <>
                   <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                     <div className="text-muted-foreground">
-                      Viewing <code>{historyView.ts}</code> · {historyView.xml.length} B
+                      正在查看 <code>{historyView.ts}</code> · {historyView.xml.length} B
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {historyMode !== 'xml' ? (
                         <label className="text-muted-foreground flex items-center gap-1">
-                          Base
+                          基准
                           <select
                             value={historyDiffBase}
                             onChange={(e) => setHistoryDiffBase(e.target.value)}
                             className="border-input bg-background rounded-md border px-1.5 py-0.5 text-[10px]"
                           >
-                            <option value="current">Current editor</option>
+                            <option value="current">当前编辑内容</option>
                             {history
                               ?.filter((h) => h.ts !== historyView.ts)
                               .map((h) => (
                                 <option key={h.ts} value={h.ts}>
-                                  {new Date(h.timestamp).toLocaleString()}
+                                  {formatTimestamp(h.timestamp)}
                                 </option>
                               ))}
                           </select>
@@ -757,7 +757,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                                 : 'hover:bg-muted'
                             }`}
                           >
-                            {m === 'diff' ? 'Unified' : m === 'side' ? 'Side-by-side' : 'Snapshot XML'}
+                            {m === 'diff' ? 'Unified' : m === 'side' ? 'Side-by-side' : '快照 XML'}
                           </button>
                         ))}
                       </div>
@@ -778,7 +778,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
                 </>
               ) : (
                 <div className="text-muted-foreground flex flex-1 items-center justify-center text-xs">
-                  Select a version on the left to preview.
+                  选择左侧版本进行预览。
                 </div>
               )}
             </div>
@@ -790,12 +790,12 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
         open={forkOpen}
         onClose={() => setForkOpen(false)}
         size="sm"
-        title="Fork snapshot as new scenario"
-        description="Creates a new scenario from the selected snapshot. The original is unchanged."
+        title="从快照创建新场景"
+        description="从选中的快照创建新场景，原场景保持不变。"
         footer={
           <>
             <Button type="button" variant="outline" size="sm" onClick={() => setForkOpen(false)}>
-              Cancel
+              取消
             </Button>
             <Button
               type="button"
@@ -803,14 +803,14 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
               onClick={onForkSubmit}
               disabled={!forkDraft.id.trim() || busy}
             >
-              Create fork
+              创建副本
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
           <div>
-            <Label className="text-xs">New scenario ID</Label>
+            <Label className="text-xs">新场景 ID</Label>
             <Input
               value={forkDraft.id}
               onChange={(e) => setForkDraft({ ...forkDraft, id: e.target.value })}
@@ -819,7 +819,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
             />
           </div>
           <div>
-            <Label className="text-xs">Name</Label>
+            <Label className="text-xs">名称</Label>
             <Input
               value={forkDraft.name}
               onChange={(e) => setForkDraft({ ...forkDraft, name: e.target.value })}
@@ -833,7 +833,7 @@ export function ScenariosV2({ bearer, busy, run, errorText }: ScenariosV2Props) 
         open={builtinPreview !== null}
         onClose={() => setBuiltinPreview(null)}
         size="lg"
-        title={builtinPreview ? `Built-in · ${builtinPreview.id}` : 'Built-in'}
+        title={builtinPreview ? `内置 · ${builtinPreview.id}` : 'Built-in'}
       >
         {builtinPreview ? (
           <Textarea
@@ -864,13 +864,13 @@ function HistoryDiffSummary({
     [oldXML, newXML],
   )
   if (added === 0 && removed === 0) {
-    return <span className="text-muted-foreground">no changes vs {baseLabel}</span>
+    return <span className="text-muted-foreground">与基准无差异 {baseLabel}</span>
   }
   return (
     <span className="font-mono">
       <span className="text-success">+{added}</span>{' '}
       <span className="text-destructive">-{removed}</span>{' '}
-      <span className="text-muted-foreground">vs {baseLabel}</span>
+      <span className="text-muted-foreground">对比 {baseLabel}</span>
     </span>
   )
 }
@@ -885,13 +885,13 @@ function SideBySideDiffView({ oldXML, newXML }: { oldXML: string; newXML: string
   return (
     <div className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-auto rounded-md border font-mono text-[11px] leading-snug">
       <div className="bg-muted/20 border-border border-r">
-        <div className="text-muted-foreground bg-muted/40 px-2 py-1 text-[10px]">Base</div>
+        <div className="text-muted-foreground bg-muted/40 px-2 py-1 text-[10px]">基准</div>
         {rows.map((r, idx) => (
           <SideRow key={`l-${idx}`} side="left" row={r} />
         ))}
       </div>
       <div className="bg-muted/20">
-        <div className="text-muted-foreground bg-muted/40 px-2 py-1 text-[10px]">Snapshot</div>
+        <div className="text-muted-foreground bg-muted/40 px-2 py-1 text-[10px]">快照</div>
         {rows.map((r, idx) => (
           <SideRow key={`r-${idx}`} side="right" row={r} />
         ))}
@@ -921,7 +921,7 @@ function DiffView({ oldXML, newXML }: { oldXML: string; newXML: string }) {
   return (
     <div className="bg-background min-h-0 flex-1 overflow-auto rounded-md border font-mono text-[11px] leading-snug">
       {lines.length === 0 ? (
-        <div className="text-muted-foreground p-2">Both versions are empty.</div>
+        <div className="text-muted-foreground p-2">两个版本内容均为空。</div>
       ) : (
         lines.map((d, idx) => <DiffRow key={idx} line={d} />)
       )}
