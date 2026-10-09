@@ -248,19 +248,27 @@ export const changeMyPassword = (
 
 export const listServers = (opts: Opts) =>
   request<{ servers: ServerProfile[] }>('GET', '/servers', undefined, opts)
+
+// List responses include display-only runtime state; profile writes must not.
+function profileWritePayload<T extends { runtime?: ProfileRuntime }>(profile: T): Omit<T, 'runtime'> {
+  const payload = { ...profile }
+  delete payload.runtime
+  return payload
+}
+
 export const createServer = (p: ServerProfile, opts: Opts) =>
-  request<ServerProfile>('POST', '/servers', p, opts)
+  request<ServerProfile>('POST', '/servers', profileWritePayload(p), opts)
 export const updateServer = (id: string, p: ServerProfile, opts: Opts) =>
-  request<ServerProfile>('PUT', `/servers/${encodeURIComponent(id)}`, p, opts)
+  request<ServerProfile>('PUT', `/servers/${encodeURIComponent(id)}`, profileWritePayload(p), opts)
 export const deleteServer = (id: string, opts: Opts) =>
   request<void>('DELETE', `/servers/${encodeURIComponent(id)}`, undefined, opts)
 
 export const listClients = (opts: Opts) =>
   request<{ clients: ClientProfile[] }>('GET', '/clients', undefined, opts)
 export const createClient = (p: ClientProfile, opts: Opts) =>
-  request<ClientProfile>('POST', '/clients', p, opts)
+  request<ClientProfile>('POST', '/clients', profileWritePayload(p), opts)
 export const updateClient = (id: string, p: ClientProfile, opts: Opts) =>
-  request<ClientProfile>('PUT', `/clients/${encodeURIComponent(id)}`, p, opts)
+  request<ClientProfile>('PUT', `/clients/${encodeURIComponent(id)}`, profileWritePayload(p), opts)
 export const deleteClient = (id: string, opts: Opts) =>
   request<void>('DELETE', `/clients/${encodeURIComponent(id)}`, undefined, opts)
 

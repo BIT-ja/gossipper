@@ -23,6 +23,7 @@ import {
   type ScenarioMeta,
   type ServerProfile,
 } from '@/api/v2'
+import { JobExecutionDetails } from '@/components/v2/JobExecutionDetails'
 import { JobStatsChart } from '@/components/v2/JobStatsChart'
 import { WebRTCDiagnosticsStrip } from '@/components/v2/WebRTCDiagnosticsStrip'
 import { ArtifactLinks } from '@/components/v2/ArtifactLinks'
@@ -621,6 +622,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
                 {detail.job.args_json ?? '{}'}
               </pre>
             </div>
+            <JobExecutionDetails key={detail.job.id} job={detail.job} artifacts={detail.artifacts} bearer={bearer} />
             <JobReportsPanel
               jobId={detail.job.id}
               artifacts={detail.artifacts}

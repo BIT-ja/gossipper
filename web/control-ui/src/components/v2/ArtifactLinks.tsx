@@ -2,7 +2,7 @@ import { artifactURL, type JobArtifact } from '@/api/v2'
 import { REPORT_KIND_LABEL, type ReportArtifactKind } from '@/lib/jobArtifacts'
 import { Button } from '@/components/ui/button'
 
-const DOWNLOADABLE = ['summary', 'report_html', 'report_pdf', 'log', 'stats'] as const
+const DOWNLOADABLE = ['summary', 'report_html', 'report_pdf', 'log', 'stats', 'call_records'] as const
 
 export function ArtifactLinks({
   jobId,

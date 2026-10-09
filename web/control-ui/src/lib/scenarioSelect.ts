@@ -6,7 +6,8 @@ export type ScenarioRoleFilter = 'uac' | 'uas' | 'both' | 'any'
 
 export function scenarioMatchesRole(role: string | undefined, filter: ScenarioRoleFilter): boolean {
   if (filter === 'any') return true
-  const r = (role ?? '').trim().toLowerCase()
+  const raw = (role ?? '').trim().toLowerCase()
+  const r = raw === 'client' ? 'uac' : raw === 'server' ? 'uas' : raw
   if (r === '' || r === 'both' || r === 'either') return true
   if (filter === 'both') return r === 'both' || r === 'either'
   return r === filter || r === 'both' || r === 'either'

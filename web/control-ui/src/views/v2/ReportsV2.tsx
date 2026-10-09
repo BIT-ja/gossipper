@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   artifactURL,
   listReports,
+  listJobs,
+  getJob,
   runTool,
   type JobArtifact,
   type ReportRow,
@@ -13,7 +15,8 @@ import { Button } from '@/components/ui/button'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
-import { fetchArtifactBytes, fetchArtifactJSON } from '@/lib/artifacts'
+import { parseSIPCallRecords } from '@/lib/sipCallRecords'
+import { fetchArtifactText, fetchArtifactBytes, fetchArtifactJSON } from '@/lib/artifacts'
 import { REPORT_KIND_LABEL, type ReportArtifactKind } from '@/lib/jobArtifacts'
 import { parseSummaryJSON } from '@/lib/summaryParse'
 import { buildZip } from '@/lib/simpleZip'
@@ -42,13 +45,27 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
   }, [initialJobFilter])
 
   const refresh = useCallback(async () => {
-    const r = await listReports({ bearer }, 200)
-    setRows(r.reports ?? [])
-    const summaries = (r.reports ?? []).filter((x) => x.artifact.kind === 'summary')
+    const [r, jobs] = await Promise.all([listReports({ bearer }, 200), listJobs({ bearer }, 200)])
+    const reports = r.reports ?? []
+    const reported = new Set(reports.map(row => row.job_id))
+    const missing = (jobs.jobs ?? []).filter(job => !reported.has(job.id) && !['running', 'pending'].includes(job.status))
+    const details = await Promise.all(missing.map(job => getJob(job.id, { bearer })))
+    for (const { job, artifacts } of details) {
+      const artifact = artifacts.filter(a => a.kind === 'call_records').at(-1) ?? artifacts.filter(a => a.kind === 'log').at(-1)
+      if (artifact) reports.push({ job_id: job.id, profile_kind: job.profile_kind, profile_id: job.profile_id, job_status: job.status, finished_at: job.finished_at, artifact })
+    }
+    reports.sort((a, b) => Date.parse(b.finished_at ?? b.artifact.created_at) - Date.parse(a.finished_at ?? a.artifact.created_at))
+    setRows(reports)
+    const summaries = reports.filter(x => ['summary', 'call_records'].includes(x.artifact.kind))
     const next: Record<string, RowKPI> = {}
     await Promise.all(
       summaries.map(async (row) => {
         try {
+          if (row.artifact.kind === 'call_records') {
+            const { records } = parseSIPCallRecords(await fetchArtifactText(row.job_id, 'call_records', bearer))
+            next[row.job_id] = { total_calls: records.length, success_ratio: records.length ? records.filter(r => r.success === true).length / records.length : undefined }
+            return
+          }
           const raw = await fetchArtifactJSON(row.job_id, 'summary', bearer)
           const k = parseSummaryJSON(raw)
           if (k) next[row.job_id] = { success_ratio: k.success_ratio, total_calls: k.total_calls, health_ok: k.health_ok }
@@ -120,7 +137,7 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
         header: 'Type',
         render: (r) => (
           <span className="text-xs">
-            {REPORT_KIND_LABEL[r.artifact.kind as ReportArtifactKind] ?? r.artifact.kind}
+            {r.artifact.kind === 'call_records' ? '执行记录（无汇总报告）' : r.artifact.kind === 'log' ? '执行日志（无汇总报告）' : REPORT_KIND_LABEL[r.artifact.kind as ReportArtifactKind] ?? r.artifact.kind}
           </span>
         ),
       },
@@ -129,7 +146,7 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
         header: 'KPI',
         render: (r) => {
           const k = kpiMap[r.job_id]
-          if (!k || r.artifact.kind !== 'summary') return <span className="text-muted-foreground">—</span>
+          if (!k || !['summary', 'call_records'].includes(r.artifact.kind)) return <span className="text-muted-foreground">—</span>
           return (
             <span className="text-xs">
               {k.total_calls ?? '—'} calls · {formatRatio(k.success_ratio ?? 0)}
@@ -176,7 +193,7 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
         align: 'right',
         render: (r) => (
           <div className="flex justify-end gap-1">
-            {r.artifact.kind === 'report_html' || r.artifact.kind === 'summary' ? (
+            {['report_html', 'summary', 'call_records', 'log'].includes(r.artifact.kind) ? (
               <Button type="button" size="xs" variant="secondary" onClick={() => setPreviewJobId(r.job_id)}>
                 Preview
               </Button>
@@ -204,7 +221,7 @@ export function ReportsV2({ bearer, run, onOpenJob, initialJobFilter }: ReportsV
         <div>
           <h2 className="text-sm font-semibold">Reports</h2>
           <p className="text-muted-foreground text-xs">
-            Summary JSON, HTML, and PDF from jobs. Select rows for bulk ZIP export; compare two summary jobs below.
+            任务报告与执行记录。未生成汇总报告的任务也可预览；Open / Download 下载对应类型的原始文件。
           </p>
         </div>
         <div className="flex gap-2">
