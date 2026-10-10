@@ -195,6 +195,21 @@ func ParseString(data string) (Scenario, error) {
 		}
 	}
 
+	// Infer call direction from the initial INVITE, not in-dialog requests such as BYE.
+	for _, cmd := range sc.Commands {
+		if cmd.Type == CommandRecv && strings.EqualFold(strings.TrimSpace(cmd.RecvReq), "INVITE") {
+			sc.Mode = ModeServer
+			break
+		}
+		if cmd.Type == CommandSend {
+			fields := strings.Fields(cmd.SendText)
+			if len(fields) >= 3 && strings.EqualFold(fields[0], "INVITE") {
+				sc.Mode = ModeClient
+				break
+			}
+		}
+	}
+
 	for i := range sc.Commands {
 		if sc.Commands[i].NextLabel == "" {
 			continue

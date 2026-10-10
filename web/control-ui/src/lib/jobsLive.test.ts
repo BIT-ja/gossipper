@@ -14,7 +14,7 @@ describe('jobsLive', () => {
   })
 
   it('parses stats jsonl lines', () => {
-    const pts = parseStatsLines(['{"kind":"stats","ts":1000,"total_calls":3}'])
+    const pts = parseStatsLines(['{"kind":"stats","ts":1000,"total_calls":99,"active_calls":3}'])
     expect(pts.length).toBe(1)
     expect(pts[0].value).toBe(3)
   })
@@ -34,4 +34,8 @@ describe('jobsLive', () => {
     expect(buckets.length).toBe(24)
     expect(buckets.some((b) => b.succeeded >= 1)).toBe(true)
   })
+})
+
+it('preserves zero concurrency and ignores legacy heartbeats', () => {
+ expect(parseStatsLines(['{"kind":"stats","ts":1000}', '{"kind":"stats","ts":2000,"total_calls":99,"active_calls":0}'])).toEqual([{ts:2000,value:0,label:'stats'}])
 })

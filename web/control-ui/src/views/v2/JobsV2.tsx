@@ -1,3 +1,5 @@
+import { displayJobArgs } from '@/lib/jobDisplay'
+import { JobProgress } from '@/components/v2/JobProgress'
 import { formatTimestamp } from '@/lib/time'
 import { displayLabel } from '@/lib/displayLabel'
 import { sipTraceRequest, sipTraceURL, type SIPCaptureStatus } from '@/api/sipTrace'
@@ -628,7 +630,7 @@ export function JobsV2({ bearer, busy, run, errorText, inspectJobId, onInspectJo
             <div>
               <div className="text-muted-foreground mb-1 font-medium">参数</div>
               <pre className="bg-muted/40 max-h-32 overflow-auto rounded p-2 font-mono text-[11px]">
-                {detail.job.args_json ?? '{}'}
+                {displayJobArgs(detail.job.args_json)}
               </pre>
             </div>
             <JobExecutionDetails key={detail.job.id} job={detail.job} artifacts={detail.artifacts} bearer={bearer} />
@@ -776,6 +778,7 @@ function JobStatsTail({ job, bearer }: { job: Job; bearer?: string }) {
     <div>
       <div className="text-muted-foreground mb-1 font-medium">运行事件</div>
       {showWebRTC ? <WebRTCDiagnosticsStrip lines={lines} iceServers={iceServers} callRecords={callRecords} /> : null}
+      {job ? <JobProgress lines={lines} job={job} /> : null}
       <JobStatsChart points={chartPoints} />
       {error ? <p className="text-destructive mt-1 text-[11px]">{error}</p> : null}
       <pre className="bg-muted/40 mt-2 max-h-48 overflow-auto rounded p-2 font-mono text-[10px] whitespace-pre-wrap">

@@ -38,6 +38,19 @@ func Prepare(cfg cli.Config) (Prepared, error) {
 	if err != nil {
 		return Prepared{}, err
 	}
+	// An explicit scenario role is authoritative, even when a UAC receives BYE.
+	switch strings.ToLower(strings.TrimSpace(cfg.ScenarioRole)) {
+	case "client", "uac":
+		sc.Mode = scenario.ModeClient
+		cfg.ServerMode = false
+	case "server", "uas":
+		sc.Mode = scenario.ModeServer
+		cfg.ServerMode = true
+	case "", "either":
+		// Scenarios without a role use XML INVITE direction inference.
+	default:
+		return Prepared{}, fmt.Errorf("unsupported scenario role %q", cfg.ScenarioRole)
+	}
 	if err := NormalizeTransport(&cfg, sc); err != nil {
 		return Prepared{}, err
 	}
@@ -128,28 +141,28 @@ func Prepare(cfg cli.Config) (Prepared, error) {
 		WebRTCICEAuthTTLSec: cfg.WebRTCICEAuthTTLSec,
 		WebRTCPrefersPCMA:   cfg.WebRTCPrefersPCMA,
 		WebRTCMedia:         cfg.WebRTCMedia,
-		CommandName:      cfg.CommandName,
-		CommandPeers:     cfg.CommandPeers,
-		UISourceIPs:      append([]string(nil), cfg.UISourceIPs...),
-		InjectionFile:    cfg.InjectionFile,
-		Keys:             cfg.Keys,
-		Role:             roleFromScenario(sc),
-		PCAPLinkLayer:    cfg.PCAPLinkLayer,
-		SipFrom:          cfg.SipFrom,
-		SipPAI:           cfg.SipPAI,
-		SipProvider:      cfg.SipProvider,
-		SipExtraHeaders:  append([]string(nil), cfg.SipExtraHeaders...),
-		RecordWAVDir:     cfg.RecordWAVDir,
-		RecordWAVDuplex:  cfg.RecordWAVDuplex,
-		CallRecordsJSONL: cfg.CallRecordsJSONL,
-		MediaRejectSRTP:  cfg.MediaRejectSRTP,
-		MediaSRTP:        cfg.MediaSRTP,
-		MediaScale:       cfg.MediaScale,
-		MediaIOUring:     cfg.MediaIOUring,
-		TURNServer:       cfg.TURNServer,
-		TURNUser:         cfg.TURNUser,
-		TURNPass:         cfg.TURNPass,
-		TURNRealm:        cfg.TURNRealm,
+		CommandName:         cfg.CommandName,
+		CommandPeers:        cfg.CommandPeers,
+		UISourceIPs:         append([]string(nil), cfg.UISourceIPs...),
+		InjectionFile:       cfg.InjectionFile,
+		Keys:                cfg.Keys,
+		Role:                roleFromScenario(sc),
+		PCAPLinkLayer:       cfg.PCAPLinkLayer,
+		SipFrom:             cfg.SipFrom,
+		SipPAI:              cfg.SipPAI,
+		SipProvider:         cfg.SipProvider,
+		SipExtraHeaders:     append([]string(nil), cfg.SipExtraHeaders...),
+		RecordWAVDir:        cfg.RecordWAVDir,
+		RecordWAVDuplex:     cfg.RecordWAVDuplex,
+		CallRecordsJSONL:    cfg.CallRecordsJSONL,
+		MediaRejectSRTP:     cfg.MediaRejectSRTP,
+		MediaSRTP:           cfg.MediaSRTP,
+		MediaScale:          cfg.MediaScale,
+		MediaIOUring:        cfg.MediaIOUring,
+		TURNServer:          cfg.TURNServer,
+		TURNUser:            cfg.TURNUser,
+		TURNPass:            cfg.TURNPass,
+		TURNRealm:           cfg.TURNRealm,
 	}
 
 	return Prepared{
@@ -270,7 +283,6 @@ func applyBuiltinScenarioFlags(cfg *cli.Config, sc scenario.Scenario) {
 func applyScaleMediaFlags(cfg *cli.Config) {
 	media.EnableScaleDirectSend(cfg.MediaIOUring)
 }
-
 
 func Validate3PCCRole(cfg cli.Config, sc scenario.Scenario) error {
 	if cfg.CommandRole != "slave" {

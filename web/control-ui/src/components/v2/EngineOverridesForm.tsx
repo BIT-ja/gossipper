@@ -29,13 +29,15 @@ export function EngineOverridesForm({ value, onChange, enabled, onEnabledChange 
     <div className="flex flex-col gap-2">
       <label className="flex items-center gap-2 text-xs font-medium">
         <input type="checkbox" checked={enabled} onChange={(e) => onEnabledChange(e.target.checked)} />
-        引擎参数覆盖（POST /jobs engine JSON）
+        覆盖客户端默认参数（留空继承）
       </label>
       {enabled ? (
         <div className="ml-5 grid grid-cols-1 gap-2 md:grid-cols-2">
-          <Field label="total_calls" type="number" value={value.total_calls} onNum={(n) => set('total_calls', n)} />
-          <Field label="rate" type="number" step="0.1" value={value.rate} onNum={(n) => set('rate', n)} />
-          <Field label="max_concurrent" type="number" value={value.max_concurrent} onNum={(n) => set('max_concurrent', n)} />
+          <Field label="总通话量（0 不限）" type="number" value={value.total_calls} onNum={(n) => set('total_calls', n)} />
+          <Field label="呼叫速率（CPS）" type="number" step="0.1" value={value.rate} onNum={(n) => set('rate', n)} />
+          <Field label="最大并发通话数" type="number" value={value.max_concurrent} onNum={(n) => set('max_concurrent', n)} />
+          <Field label="最大执行时长（秒，0 不限）" type="number" value={value.global_timeout_ms === undefined ? undefined : value.global_timeout_ms / 1000} onNum={(n) => set('global_timeout_ms', n === undefined ? undefined : n * 1000)} />
+          <p className="text-muted-foreground text-xs md:col-span-2">达到最大时长会结束整个任务，包括仍在进行的通话。</p>
           <Field label="remote_host" value={value.remote_host} onStr={(s) => set('remote_host', s)} />
           <Field label="remote_port" type="number" value={value.remote_port} onNum={(n) => set('remote_port', n)} />
           <Field label="sip_from" value={value.sip_from} onStr={(s) => set('sip_from', s)} mono />
@@ -68,6 +70,8 @@ function Field({
     <div className="flex flex-col gap-0.5">
       <Label className="text-[10px]">{label}</Label>
       <Input
+        aria-label={label}
+        min={type === 'number' ? 0 : undefined}
         type={type}
         step={step}
         className={`h-8 text-xs ${mono ? 'font-mono' : ''}`}

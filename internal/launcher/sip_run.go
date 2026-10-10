@@ -38,7 +38,7 @@ func runSIPScenarioSingle(ctx context.Context, cfg cli.Config) error {
 	}
 
 	if cfg.SIPCaptureDir != "" {
-		capture, err := sipcapture.OpenWithMode(cfg.SIPCaptureDir, cfg.ServerMode)
+		capture, err := sipcapture.OpenWithMode(cfg.SIPCaptureDir, prepared.CLIConfig.ServerMode)
 		if err != nil {
 			return fmt.Errorf("SIP capture: %w", err)
 		}
@@ -65,6 +65,28 @@ func runSIPScenarioSingle(ctx context.Context, cfg cli.Config) error {
 	defer cancelRun()
 
 	app := engine.New(prepared.EngineConfig)
+	if cfg.StatsObserver != nil {
+		stopStats := make(chan struct{})
+		statsDone := make(chan struct{})
+		go func() {
+			defer close(statsDone)
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-stopStats:
+					return
+				case <-ticker.C:
+					cfg.StatsObserver(app.Stats().Snapshot(), prepared.EngineConfig.TotalCalls)
+				}
+			}
+		}()
+		defer func() {
+			close(stopStats)
+			<-statsDone
+			cfg.StatsObserver(app.Stats().Snapshot(), prepared.EngineConfig.TotalCalls)
+		}()
+	}
 	var loadCoord *LoadCoordinator
 	if prepared.CLIConfig.ApiAddr != "" && prepared.CLIConfig.ServerMode {
 		res := []string{}

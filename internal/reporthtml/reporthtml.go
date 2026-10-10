@@ -3,6 +3,7 @@ package reporthtml
 
 import (
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/timefmt"
 	"html/template"
 	"io"
 	"os"
@@ -27,7 +28,8 @@ func WriteFile(path string, s stats.Summary) error {
 // Write renders the HTML report to w.
 func Write(w io.Writer, s stats.Summary) error {
 	tmpl := template.Must(template.New("report").Funcs(template.FuncMap{
-		"hasTime": func(t time.Time) bool { return !t.IsZero() },
+		"timestamp": timefmt.Format,
+		"hasTime":   func(t time.Time) bool { return !t.IsZero() },
 		"barWidth": func(x float64) float64 {
 			if x < 0 {
 				return 0
@@ -97,8 +99,8 @@ ul.findings li { margin:.35rem 0; }
     {{if .ToolVersion}}{{.ToolVersion}} · {{end}}
     {{if .SchemaVersion}}schema {{.SchemaVersion}}{{end}}
     <br/>
-    {{if hasTime .StartedAt}}Started {{.StartedAt.Format "2006-01-02 15:04:05"}}{{end}}
-    {{if hasTime .FinishedAt}} · Finished {{.FinishedAt.Format "2006-01-02 15:04:05"}}{{end}}
+    {{if hasTime .StartedAt}}Started {{timestamp .StartedAt}}{{end}}
+    {{if hasTime .FinishedAt}} · Finished {{timestamp .FinishedAt}}{{end}}
     · Wall {{dur .Duration}}
   </div>
 </header>

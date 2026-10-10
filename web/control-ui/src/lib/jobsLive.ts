@@ -111,16 +111,16 @@ export function computeJobTimeline24h(jobs: Job[], now: Date = new Date()): JobT
   const cutoff = now.getTime() - 24 * 3600 * 1000
   const buckets = new Map<string, { succeeded: number; failed: number }>()
   for (let h = 0; h < 24; h++) {
-    const t = new Date(now.getTime() - (23 - h) * 3600 * 1000)
-    const key = `${t.getFullYear()}-${t.getMonth()}-${t.getDate()}-${t.getHours()}`
+    const t = new Date(now.getTime() + 8 * 3600 * 1000 - (23 - h) * 3600 * 1000)
+    const key = `${t.getUTCFullYear()}-${t.getUTCMonth()}-${t.getUTCDate()}-${t.getUTCHours()}`
     buckets.set(key, { succeeded: 0, failed: 0 })
   }
-  const bucketKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`
+  const bucketKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${d.getUTCHours()}`
   for (const j of jobs) {
     const ts = Date.parse(j.finished_at ?? j.created_at)
     if (!Number.isFinite(ts) || ts < cutoff) continue
     if (j.status !== 'succeeded' && j.status !== 'failed') continue
-    const d = new Date(ts)
+    const d = new Date(ts + 8 * 3600 * 1000)
     const key = bucketKey(d)
     const b = buckets.get(key)
     if (!b) continue
@@ -143,11 +143,10 @@ export function parseStatsLines(lines: string[]): StatsPoint[] {
     if (!line.trim()) continue
     try {
       const ev = JSON.parse(line) as Record<string, unknown>
+      if (ev.kind !== 'stats' || typeof ev.active_calls !== 'number') continue
       const ts = Number(ev.ts ?? ev.timestamp ?? Date.now())
-      const value =
-        Number(ev.total_calls ?? ev.active_calls ?? ev.calls_per_second ?? ev.interval_calls_per_second) ||
-        (ev.kind === 'stats' ? 1 : 0)
-      if (Number.isFinite(ts) && Number.isFinite(value)) {
+      const value = ev.active_calls
+      if (Number.isFinite(ts) && Number.isFinite(value) && value >= 0) {
         points.push({ ts, value, label: String(ev.kind ?? '') })
       }
     } catch {

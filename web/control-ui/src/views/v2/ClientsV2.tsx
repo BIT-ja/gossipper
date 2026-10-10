@@ -428,6 +428,9 @@ function ClientForm({
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div><Label htmlFor="client-total-calls" className="text-xs">总通话量（0 表示不限）</Label>
+        <Input id="client-total-calls" type="number" min="0" step="1" value={value.total_calls ?? 1}
+          onChange={(e) => set('total_calls', Number(e.target.value))} className="mt-1" /></div>
         <div>
           <Label className="text-xs">呼叫速率（CPS）</Label>
           <Input
@@ -447,11 +450,11 @@ function ClientForm({
           />
         </div>
         <div>
-          <Label className="text-xs">持续时间（毫秒，0 表示不限）</Label>
+          <Label className="text-xs">默认最大执行时长（秒，0 表示不限）</Label>
           <Input
             type="number"
-            value={value.duration_ms ?? 0}
-            onChange={(e) => set('duration_ms', Number(e.target.value) || 0)}
+            value={(value.duration_ms ?? 0) / 1000}
+            onChange={(e) => set('duration_ms', (Number(e.target.value) || 0) * 1000)}
             className="mt-1"
           />
         </div>

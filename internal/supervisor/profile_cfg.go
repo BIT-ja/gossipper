@@ -62,7 +62,8 @@ func BuildConfigFromSpec(spec Spec) (cli.Config, func(), error) {
 		body, err := store.GetScenario(scenarioID)
 		switch {
 		case err == nil:
-			// materialise the XML below.
+			// Preserve the selected scenario role through worker preparation.
+			cfg.ScenarioRole = body.Meta.Role
 		case errors.Is(err, uistore.ErrNotFound):
 			// Fallback to engine-baked scenarios ("uac", "uas", "management",
 			// "invite_media*", …). These ship in scenario.LoadNamed and don't
@@ -216,6 +217,10 @@ func applyClientProfileToConfig(cfg *cli.Config, p uistore.ClientProfile) {
 	if p.MaxConcurrent > 0 {
 		cfg.MaxConcurrent = p.MaxConcurrent
 	}
+	if p.TotalCalls != nil {
+		cfg.TotalCalls = *p.TotalCalls
+		cfg.TotalCallsSetExplicitly = true
+	}
 	if p.DurationMs > 0 {
 		cfg.GlobalTimeout = time.Duration(p.DurationMs) * time.Millisecond
 	}
@@ -347,7 +352,7 @@ func overlayEngineJSON(cfg *cli.Config, raw []byte) error {
 	}
 	if v, ok := m["global_timeout_ms"]; ok {
 		var n int
-		if json.Unmarshal(v, &n) == nil && n > 0 {
+		if json.Unmarshal(v, &n) == nil && n >= 0 {
 			cfg.GlobalTimeout = time.Duration(n) * time.Millisecond
 		}
 	}

@@ -125,6 +125,7 @@ export type ClientProfile = {
   remote_port?: number
   rate?: number
   max_concurrent?: number
+  total_calls?: number
   duration_ms?: number
   notes?: string
   source?: ProfileSource

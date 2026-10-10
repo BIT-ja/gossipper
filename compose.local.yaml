@@ -1,0 +1,16 @@
+services:
+  gossipper:
+    build: .
+    image: gossipper:local
+    ports:
+      - "127.0.0.1:18080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      GOSSIPPER_BOOTSTRAP_USERNAME: admin
+      GOSSIPPER_BOOTSTRAP_PASSWORD: ${GOSSIPPER_BOOTSTRAP_PASSWORD:?Set bootstrap password}
+    volumes:
+      - gossipper-local-data:/var/lib/gossipper
+    stop_grace_period: 30s
+    restart: unless-stopped
+volumes:
+  gossipper-local-data:

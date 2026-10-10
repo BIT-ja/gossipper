@@ -262,3 +262,51 @@ func TestBuildConfigFromSpecSummaryHTML(t *testing.T) {
 		t.Fatalf("CallRecordsJSONL=%q want %q", cfg.CallRecordsJSONL, wantCR)
 	}
 }
+
+func TestBuildConfigPropagatesScenarioRoleAndOverride(t *testing.T) {
+	dir := t.TempDir()
+	store, err := uistore.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range []string{"client", "server"} {
+		_, err := store.PutScenario(uistore.ScenarioMeta{ID: role, Role: role}, `<scenario name="test"><recv request="BYE"/></scenario>`, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = store.PutClientProfile(uistore.ClientProfile{ID: "test", ScenarioRef: "server"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, override := range []string{"", "client"} {
+		cfg, cleanup, err := BuildConfigFromSpec(Spec{DataDir: dir, ProfileID: "test", ProfileKind: "client", ScenarioID: override})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cleanup()
+		expected := "server"
+		if override != "" {
+			expected = override
+		}
+		if cfg.ScenarioRole != expected {
+			t.Fatalf("role = %q, want %q", cfg.ScenarioRole, expected)
+		}
+	}
+}
+
+func TestClientTotalCallsDefaultsAndOverrides(t *testing.T) {
+	for _, n := range []int{0, 30, 10000} {
+		cfg := cli.Config{TotalCalls: 1}
+		applyClientProfileToConfig(&cfg, uistore.ClientProfile{TotalCalls: &n})
+		if cfg.TotalCalls != n || !cfg.TotalCallsSetExplicitly {
+			t.Fatalf("total calls lost: %+v", cfg)
+		}
+		if err := overlayEngineJSON(&cfg, []byte(`{"total_calls":7,"global_timeout_ms":90000}`)); err != nil {
+			t.Fatal(err)
+		}
+		if cfg.TotalCalls != 7 || cfg.GlobalTimeout.Milliseconds() != 90000 {
+			t.Fatal("job override did not win")
+		}
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sipcapture/gossipper/internal/stats"
 	"github.com/sipcapture/gossipper/mediasink"
 )
 
@@ -37,12 +38,14 @@ const (
 )
 
 type Config struct {
-	ScenarioFile string
-	ScenarioName string
-	Service      string
-	Transport    string
-	LocalIP      string
-	LocalPort    int
+	StatsObserver func(stats.Summary, int) `json:"-"`
+	ScenarioFile  string
+	ScenarioName  string
+	ScenarioRole  string // Explicit UI scenario role; overrides XML mode inference.
+	Service       string
+	Transport     string
+	LocalIP       string
+	LocalPort     int
 	// ServerListeners binds several SIP server sockets in management mode when non-empty
 	// (UDP u1/un, TCP t1/tn, TLS l1/ln, or mixed; see run profile "listeners").
 	ServerListeners  []ServerListener

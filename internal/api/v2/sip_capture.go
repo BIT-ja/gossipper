@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/sipcapture/gossipper/internal/sipcapture"
 	"github.com/sipcapture/gossipper/internal/supervisor"
+	"github.com/sipcapture/gossipper/internal/timefmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -44,7 +45,7 @@ func (s *Server) handleSIPCapture(w http.ResponseWriter, r *http.Request) {
 			state["status"] = "error"
 		}
 		if j.FinishedAt != nil {
-			state["expires_at"] = j.FinishedAt.Add(time.Duration(cfg.RetentionDays) * 24 * time.Hour).UTC().Format("2006-01-02 15:04:05.000000000")
+			state["expires_at"] = timefmt.Format(j.FinishedAt.Add(time.Duration(cfg.RetentionDays) * 24 * time.Hour))
 			if state["status"] == "recording" || state["status"] == "pending" {
 				state["status"] = "interrupted"
 			}

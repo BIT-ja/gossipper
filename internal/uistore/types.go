@@ -81,6 +81,7 @@ type ClientProfile struct {
 	RemotePort    int             `json:"remote_port,omitempty"`
 	Rate          float64         `json:"rate,omitempty"`
 	MaxConcurrent int             `json:"max_concurrent,omitempty"`
+	TotalCalls    *int            `json:"total_calls,omitempty"`
 	DurationMs    int             `json:"duration_ms,omitempty"`
 	Notes         string          `json:"notes,omitempty"`
 	// Source: see ServerProfile.Source.
@@ -103,9 +104,9 @@ type ScenarioHistoryEntry struct {
 // ScenarioMeta is the sidecar JSON for a scenario XML file. The XML body is
 // stored separately to keep diffs friendly.
 type ScenarioMeta struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 	// Role hints whether the scenario is intended for server (UAS) or client
 	// (UAC) profiles; empty means "either".
 	Role      string    `json:"role,omitempty"`

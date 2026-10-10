@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/timefmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -174,7 +175,7 @@ func (w *Writer) Record(direction, src, dst string, raw []byte) {
 		}
 	}
 	w.nextMessage++
-	m := Message{Seq: w.nextMessage, CallSeq: callSeq, CallID: id, Time: time.Now().UTC().Format("2006-01-02 15:04:05.000000000"), Direction: direction, Src: src, Dst: dst, Raw: sanitized, Summary: summary}
+	m := Message{Seq: w.nextMessage, CallSeq: callSeq, CallID: id, Time: time.Now().In(timefmt.Location).Format(time.RFC3339Nano), Direction: direction, Src: src, Dst: dst, Raw: sanitized, Summary: summary}
 	size := messageBytes(m)
 	if size > maxQueuedBytes-w.queuedBytes {
 		w.dropped++
@@ -500,9 +501,7 @@ func ReadMessages(dir, callID string, after int64, limit int) ([]Message, bool, 
 		if err = rows.Scan(&m.Seq, &m.CallSeq, &m.CallID, &m.Time, &m.Direction, &m.Src, &m.Dst, &m.Raw, &m.Summary); err != nil {
 			return nil, false, err
 		}
-		if parsed, parseErr := time.Parse(time.RFC3339Nano, m.Time); parseErr == nil {
-			m.Time = parsed.UTC().Format("2006-01-02 15:04:05.000000000")
-		}
+		m.Time = timefmt.Capture(m.Time)
 		out = append(out, m)
 	}
 	more := len(out) > limit

@@ -1,3 +1,4 @@
+import { JobProgress } from '@/components/v2/JobProgress'
 import { displayLabel } from '@/lib/displayLabel'
 import { artifactURL, getJob, jobEventsURL, listClients, listRecordings, listServers, stopJob, type Job, type JobArtifact, type Recording } from '@/api/v2'
 import { JobStatsChart } from '@/components/v2/JobStatsChart'
@@ -187,6 +188,7 @@ export function JobMonitorPanel({
       </div>
       {summary ? <SummaryKPICards kpi={summary} /> : null}
       {showWebRTC ? <WebRTCDiagnosticsStrip lines={lines} iceServers={iceServers} callRecords={callRecords} /> : null}
+      {job ? <JobProgress lines={lines} job={job} /> : null}
       <JobStatsChart points={chartPoints} />
       {error ? <p className="text-destructive text-[11px]">{error}</p> : null}
       {!compact ? (

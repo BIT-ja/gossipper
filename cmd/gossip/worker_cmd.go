@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/sipcapture/gossipper/internal/cli"
 	"github.com/sipcapture/gossipper/internal/launcher"
+	"github.com/sipcapture/gossipper/internal/stats"
 	"github.com/sipcapture/gossipper/internal/supervisor"
 	"github.com/sipcapture/gossipper/internal/toolrun"
 )
@@ -93,35 +93,17 @@ Flags:
 		defer cancel()
 	}
 
-	// Stats streamer — best-effort, fully decoupled from the engine.
-	interval := time.Duration(spec.StatsIntervalMs) * time.Millisecond
-	if interval <= 0 {
-		interval = time.Second
+	cfg.StatsObserver = func(s stats.Summary, target int) {
+		emitWorkerEvent("stats", map[string]any{
+			"job_id": spec.JobID, "target_calls": target,
+			"total_calls": s.TotalCalls, "success_calls": s.SuccessCalls,
+			"failed_calls": s.FailedCalls, "active_calls": s.ActiveCalls,
+			"calls_per_second":  s.CallsPerSecond,
+			"global_timeout_ms": cfg.GlobalTimeout.Milliseconds(),
+		})
 	}
-	streamCtx, cancelStream := context.WithCancel(ctx)
-	var streamWG sync.WaitGroup
-	streamWG.Add(1)
-	go func() {
-		defer streamWG.Done()
-		t := time.NewTicker(interval)
-		defer t.Stop()
-		emitWorkerEvent("started", map[string]any{"job_id": spec.JobID, "pid": os.Getpid()})
-		for {
-			select {
-			case <-streamCtx.Done():
-				return
-			case <-t.C:
-				emitWorkerEvent("stats", map[string]any{
-					"job_id": spec.JobID,
-					"ts":     time.Now().UTC().Unix(),
-				})
-			}
-		}
-	}()
-
+	emitWorkerEvent("started", map[string]any{"job_id": spec.JobID, "pid": os.Getpid()})
 	runErr := launcher.RunSIPScenario(ctx, cfg)
-	cancelStream()
-	streamWG.Wait()
 
 	if runErr != nil && !errors.Is(runErr, context.Canceled) {
 		emitWorkerEvent("exit", map[string]any{"job_id": spec.JobID, "error": runErr.Error()})
