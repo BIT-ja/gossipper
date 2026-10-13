@@ -1,5 +1,5 @@
 export type SIPTraceMessage = { seq: number; call_seq: number; call_id: string; time: string; direction: string; src: string; dst: string; raw: string; summary: string }
-export type SIPCaptureStatus = { enabled: boolean; status: string; error?: string; dropped: number; messages: number; expires_at?: string }
+export type SIPCaptureStatus = { storage?: 'mysql' | 'sqlite'; enabled: boolean; status: string; error?: string; dropped: number; messages: number; expires_at?: string }
 export type SIPMessagePage = { messages: SIPTraceMessage[]; next_cursor: number; has_more: boolean }
 export function sipTraceURL(jobId: string, resource: string, callId?: string, after?: number) {
   const query = new URLSearchParams()

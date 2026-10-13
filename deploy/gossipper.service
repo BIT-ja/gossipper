@@ -1,0 +1,21 @@
+[Unit]
+Description=Gossipper SIP Load Test
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=gossipper
+Group=gossipper
+WorkingDirectory=/var/lib/gossipper
+Environment=TZ=Asia/Shanghai
+ExecStart=/opt/gossipper/bin/gossipper ui --config /etc/gossipper/gossipper.json
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillMode=control-group
+LimitNOFILE=65536
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

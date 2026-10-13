@@ -2,6 +2,7 @@ package v2
 
 import (
 	"encoding/json"
+	"github.com/sipcapture/gossipper/internal/dbstore"
 	"github.com/sipcapture/gossipper/internal/sipcapture"
 	"github.com/sipcapture/gossipper/internal/supervisor"
 	"github.com/sipcapture/gossipper/internal/timefmt"
@@ -30,6 +31,11 @@ func (s *Server) handleSIPCapture(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg := supervisor.ReadCaptureConfig(j.ArtifactsDir)
 	state := map[string]any{"enabled": cfg.Enabled, "retention_days": cfg.RetentionDays, "status": "disabled", "dropped": 0, "messages": 0}
+	if dbstore.Enabled() {
+		state["storage"] = "mysql"
+	} else {
+		state["storage"] = "sqlite"
+	}
 	if cfg.Enabled {
 		state["status"] = "pending"
 		v, err := sipcapture.Status(filepath.Join(j.ArtifactsDir, "sip-capture"))

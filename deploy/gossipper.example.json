@@ -1,0 +1,14 @@
+{
+  "data_dir": "/var/lib/gossipper",
+  "http": {"listen": "0.0.0.0:8080"},
+  "storage": {
+    "driver": "mysql",
+    "mysql": {
+      "host": "10.90.0.110",
+      "port": 3306,
+      "database": "jingrobot-test",
+      "username": "by_test",
+      "password": "REPLACE_WITH_DATABASE_PASSWORD"
+    }
+  }
+}

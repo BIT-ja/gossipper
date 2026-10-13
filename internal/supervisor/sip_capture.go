@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/sipcapture"
 	"os"
 	"path/filepath"
 	"time"
@@ -59,7 +60,7 @@ func SweepCapture(ctx context.Context, root string, store *JobsStore) {
 			continue
 		}
 		if CaptureExpired(j, time.Now()) {
-			_ = os.RemoveAll(filepath.Join(j.ArtifactsDir, "sip-capture"))
+			_ = sipcapture.Delete(filepath.Join(j.ArtifactsDir, "sip-capture"))
 		}
 	}
 }

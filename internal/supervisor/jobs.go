@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/dbstore"
 	"strings"
 	"time"
 )
@@ -34,20 +35,20 @@ const (
 
 // Job is a persisted representation of a worker run.
 type Job struct {
-	ID           string    `json:"id"`
-	ProfileID    string    `json:"profile_id,omitempty"`
-	ProfileKind  string    `json:"profile_kind,omitempty"`
-	ScenarioID   string    `json:"scenario_id,omitempty"`
-	Status       Status    `json:"status"`
-	ArgsJSON     string    `json:"args_json,omitempty"`
-	ArtifactsDir string    `json:"artifacts_dir,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           string     `json:"id"`
+	ProfileID    string     `json:"profile_id,omitempty"`
+	ProfileKind  string     `json:"profile_kind,omitempty"`
+	ScenarioID   string     `json:"scenario_id,omitempty"`
+	Status       Status     `json:"status"`
+	ArgsJSON     string     `json:"args_json,omitempty"`
+	ArtifactsDir string     `json:"artifacts_dir,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
 	StartedAt    *time.Time `json:"started_at,omitempty"`
 	FinishedAt   *time.Time `json:"finished_at,omitempty"`
-	ExitCode     *int      `json:"exit_code,omitempty"`
-	Error        string    `json:"error,omitempty"`
-	CreatedBy    *int64    `json:"created_by,omitempty"`
-	PID          *int      `json:"pid,omitempty"`
+	ExitCode     *int       `json:"exit_code,omitempty"`
+	Error        string     `json:"error,omitempty"`
+	CreatedBy    *int64     `json:"created_by,omitempty"`
+	PID          *int       `json:"pid,omitempty"`
 }
 
 // JobsStore persists Job rows in the settings SQLite DB.
@@ -75,9 +76,9 @@ func (s *JobsStore) Create(ctx context.Context, j Job) (Job, error) {
 	if j.ArgsJSON == "" {
 		j.ArgsJSON = "{}"
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.ExecContext(ctx, dbstore.SQL(s.db, `
 INSERT INTO jobs (id, profile_id, profile_kind, scenario_id, status, args_json, artifacts_dir, created_at, created_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 		id, nullableStr(j.ProfileID), j.ProfileKind, nullableStr(j.ScenarioID),
 		string(j.Status), j.ArgsJSON, j.ArtifactsDir, j.CreatedAt.UTC().Format(time.RFC3339Nano), nullableInt64(j.CreatedBy))
 	if err != nil {
@@ -91,31 +92,31 @@ func (s *JobsStore) UpdateStatus(ctx context.Context, id string, status Status, 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	switch status {
 	case StatusRunning:
-		_, err := s.db.ExecContext(ctx, `UPDATE jobs SET status=?, started_at=COALESCE(started_at, ?) WHERE id=?`,
+		_, err := s.db.ExecContext(ctx, dbstore.SQL(s.db, `UPDATE jobs SET status=?, started_at=COALESCE(started_at, ?) WHERE id=?`),
 			string(status), now, id)
 		return err
 	case StatusSucceeded, StatusFailed, StatusStopped:
-		_, err := s.db.ExecContext(ctx, `UPDATE jobs SET status=?, finished_at=?, exit_code=?, error=? WHERE id=?`,
+		_, err := s.db.ExecContext(ctx, dbstore.SQL(s.db, `UPDATE jobs SET status=?, finished_at=?, exit_code=?, error=? WHERE id=?`),
 			string(status), now, nullableInt(exitCode), strings.TrimSpace(errMsg), id)
 		return err
 	default:
-		_, err := s.db.ExecContext(ctx, `UPDATE jobs SET status=? WHERE id=?`, string(status), id)
+		_, err := s.db.ExecContext(ctx, dbstore.SQL(s.db, `UPDATE jobs SET status=? WHERE id=?`), string(status), id)
 		return err
 	}
 }
 
 // SetPID attaches a worker PID to a job (used once exec succeeds).
 func (s *JobsStore) SetPID(ctx context.Context, id string, pid int) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE jobs SET pid=? WHERE id=?`, pid, id)
+	_, err := s.db.ExecContext(ctx, dbstore.SQL(s.db, `UPDATE jobs SET pid=? WHERE id=?`), pid, id)
 	return err
 }
 
 // Get returns a single job by id.
 func (s *JobsStore) Get(ctx context.Context, id string) (Job, error) {
-	row := s.db.QueryRowContext(ctx, `
+	row := s.db.QueryRowContext(ctx, dbstore.SQL(s.db, `
 SELECT id, profile_id, profile_kind, scenario_id, status, args_json, artifacts_dir,
        created_at, started_at, finished_at, exit_code, error, created_by, pid
-FROM jobs WHERE id = ?`, id)
+FROM jobs WHERE id = ?`), id)
 	return scanJob(row)
 }
 
@@ -124,10 +125,10 @@ func (s *JobsStore) List(ctx context.Context, limit int) ([]Job, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, dbstore.SQL(s.db, `
 SELECT id, profile_id, profile_kind, scenario_id, status, args_json, artifacts_dir,
        created_at, started_at, finished_at, exit_code, error, created_by, pid
-FROM jobs ORDER BY created_at DESC LIMIT ?`, limit)
+FROM jobs ORDER BY created_at DESC LIMIT ?`), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +146,7 @@ FROM jobs ORDER BY created_at DESC LIMIT ?`, limit)
 
 // Delete removes a job (and its artifacts row via FK cascade).
 func (s *JobsStore) Delete(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id = ?`, id)
+	res, err := s.db.ExecContext(ctx, dbstore.SQL(s.db, `DELETE FROM jobs WHERE id = ?`), id)
 	if err != nil {
 		return err
 	}
@@ -161,9 +162,9 @@ func (s *JobsStore) AddArtifact(ctx context.Context, jobID, kind, path string, s
 	if strings.TrimSpace(jobID) == "" || strings.TrimSpace(kind) == "" || strings.TrimSpace(path) == "" {
 		return errors.New("supervisor: AddArtifact requires job_id, kind, path")
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.ExecContext(ctx, dbstore.SQL(s.db, `
 INSERT INTO job_artifacts (job_id, kind, path, size_bytes, created_at)
-VALUES (?, ?, ?, ?, ?)`,
+VALUES (?, ?, ?, ?, ?)`),
 		jobID, kind, path, size, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
@@ -180,9 +181,9 @@ type Artifact struct {
 
 // ListArtifacts returns artifacts for a job ordered by creation time asc.
 func (s *JobsStore) ListArtifacts(ctx context.Context, jobID string) ([]Artifact, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, dbstore.SQL(s.db, `
 SELECT id, job_id, kind, path, size_bytes, created_at FROM job_artifacts
-WHERE job_id = ? ORDER BY created_at ASC, id ASC`, jobID)
+WHERE job_id = ? ORDER BY created_at ASC, id ASC`), jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -220,14 +221,14 @@ func (s *JobsStore) ListReportArtifacts(ctx context.Context, limit int) ([]Repor
 	if limit > 1000 {
 		limit = 1000
 	}
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, dbstore.SQL(s.db, `
 SELECT j.id, j.profile_kind, j.profile_id, j.status, j.finished_at,
        a.id, a.job_id, a.kind, a.path, a.size_bytes, a.created_at
 FROM job_artifacts a
 JOIN jobs j ON j.id = a.job_id
 WHERE a.kind IN ('summary', 'report_html', 'report_pdf')
 ORDER BY a.created_at DESC, a.id DESC
-LIMIT ?`, limit)
+LIMIT ?`), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +236,7 @@ LIMIT ?`, limit)
 	var out []ReportRow
 	for rows.Next() {
 		var (
-			row        ReportRow
+			row         ReportRow
 			profileKind sql.NullString
 			profileID   sql.NullString
 			finished    sql.NullString

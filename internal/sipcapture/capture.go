@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/dbstore"
 	"github.com/sipcapture/gossipper/internal/timefmt"
 	"os"
 	"path/filepath"
@@ -41,6 +42,7 @@ func messageBytes(m Message) int64 {
 }
 
 type Writer struct {
+	mysqlJob              string
 	mu                    sync.Mutex
 	dir                   string
 	calls                 map[string]int64
@@ -78,6 +80,9 @@ func openDB(path string) (*sql.DB, error) {
 }
 func Open(dir string) (*Writer, error) { return OpenWithMode(dir, true) }
 func OpenWithMode(dir string, external bool) (*Writer, error) {
+	if dbstore.Enabled() {
+		return openMySQL(dir, external)
+	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
@@ -313,6 +318,9 @@ func (w *Writer) run() {
 	}
 }
 func (w *Writer) write(batch []Message) error {
+	if w.mysqlJob != "" {
+		return w.writeMySQL(batch)
+	}
 	groups := map[int64][]Message{}
 	for _, m := range batch {
 		// UAC registrations are evicted only after catalog commit; late traffic resolves
@@ -411,6 +419,11 @@ func Status(dir string) (map[string]any, error) {
 	}
 	var s map[string]any
 	err = json.Unmarshal(b, &s)
+	if dbstore.Enabled() {
+		s["storage"] = "mysql"
+	} else {
+		s["storage"] = "sqlite"
+	}
 	return s, err
 }
 func readDB(path string) (*sql.DB, error) {
@@ -434,6 +447,9 @@ func capLimit(n int) int {
 	return n
 }
 func ListCalls(dir string, after int64, limit int) ([]Call, bool, error) {
+	if dbstore.Enabled() {
+		return listMySQLCalls(dir, after, limit)
+	}
 	limit = capLimit(limit)
 	out := []Call{}
 	db, err := readDB(filepath.Join(dir, "catalog.sqlite"))
@@ -463,6 +479,9 @@ func ListCalls(dir string, after int64, limit int) ([]Call, bool, error) {
 	return out, more, rows.Err()
 }
 func ReadMessages(dir, callID string, after int64, limit int) ([]Message, bool, error) {
+	if dbstore.Enabled() {
+		return readMySQLMessages(dir, callID, after, limit)
+	}
 	limit = capLimit(limit)
 	out := []Message{}
 	var n, callSeq int64

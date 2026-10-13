@@ -25,7 +25,15 @@ docker compose -f compose.local.yaml down
 
 ## SIP 测试与服务器部署差异
 
-此 Compose 仅将 Web 端口映射到本机回环地址；本机 SIP 测试应让服务端、客户端任务都在同一容器内，以 `127.0.0.1` 互通。
+此 Compose 将 Web 端口映射到本机回环地址，并发布 UDP `15060`（SIP）和 `15062–15261`（RTP/RTCP）。同容器回环测试仍可使用 `127.0.0.1`。
+
+访问外部 SIP 服务时，客户端选择 `u1`、启用传输，绑定 `0.0.0.0:15060`；场景 Contact 使用对端能访问的宿主机 IP 和端口 `15060`，SDP 的 `o=`、`c=` 使用同一可达 IP，`m=audio` 保留 `[media_port]`。不要在容器内绑定宿主机 IP，也不要把抓包中的临时 NAT 源端口写入场景。`rport` 只解决 SIP 响应回程，Contact/BYE 和 SDP/RTP 仍需要上述入站映射。
+
+当前媒体端口按任务内累计通话序号递增：`15060 + 2 × call_number`，并为 RTCP 保留相邻端口。因此默认范围只覆盖每个任务最多 100 通电话，**不是 100 路并发**；超过该总通话量前需扩大映射并检查端口上限。使用该固定 SIP 端口的任务应串行运行。此配置没有引入 RTP 端口池。
+
+服务器触发挂断的场景，应在 ACK 后执行 `<recv request="BYE" timeout="120000"/>`，复制收到的 Via/From/To/Call-ID/CSeq 返回 `200 OK` 后停止 RTP。不要用固定 `pause` 代替等待 BYE，否则暂停期间可能延后响应。
+
+已启用 MySQL 的环境重建容器时，须继续加载原有 `GOSSIPPER_MYSQL_DSN`，避免回退到 SQLite，详见 [MySQL 存储](mysql.md)。
 Docker Desktop 的网络不能等同于 Linux 服务器宿主机网络。外部 SIP/RTP 压测需要单独配置双向可达的 SIP/RTP 地址及端口。
 Linux 服务器建议使用宿主机网络、单副本、持久化数据目录，并在发布前结束运行中的压测任务。
 

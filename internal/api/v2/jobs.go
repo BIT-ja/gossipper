@@ -2,8 +2,8 @@ package v2
 
 import (
 	"errors"
+	"github.com/sipcapture/gossipper/internal/sipcapture"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -240,7 +240,7 @@ func (s *Server) handleDeleteJob(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusConflict, "stop job before deleting")
 		return
 	}
-	if err := os.RemoveAll(filepath.Join(job.ArtifactsDir, "sip-capture")); err != nil {
+	if err := sipcapture.Delete(filepath.Join(job.ArtifactsDir, "sip-capture")); err != nil {
 		s.writeError(w, 500, err.Error())
 		return
 	}

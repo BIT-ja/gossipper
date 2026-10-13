@@ -4,8 +4,12 @@ services:
     image: gossipper:local
     ports:
       - "127.0.0.1:18080:8080"
+      # Fixed SIP port and RTP/RTCP range for up to 100 calls per job.
+      - "15060:15060/udp"
+      - "15062-15261:15062-15261/udp"
     environment:
       TZ: Asia/Shanghai
+      GOSSIPPER_MYSQL_DSN: ${GOSSIPPER_MYSQL_DSN:-}
       GOSSIPPER_BOOTSTRAP_USERNAME: admin
       GOSSIPPER_BOOTSTRAP_PASSWORD: ${GOSSIPPER_BOOTSTRAP_PASSWORD:?Set bootstrap password}
     volumes:

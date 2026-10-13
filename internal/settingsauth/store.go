@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/dbstore"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,17 @@ const bcryptCost = 12
 
 // OpenStore opens the SQLite settings database (creates file if missing) and runs migrations.
 func OpenStore(path string) (*sql.DB, error) {
+	if dbstore.Enabled() {
+		db, err := dbstore.Open()
+		if err != nil {
+			return nil, err
+		}
+		if err = dbstore.Migrate(db); err != nil {
+			db.Close()
+			return nil, err
+		}
+		return db, nil
+	}
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return nil, errors.New("settings sqlite path is empty")
@@ -133,7 +145,7 @@ func VerifyUser(ctx context.Context, db *sql.DB, username, password string) (int
 	}
 	var id int64
 	var hash string
-	err := db.QueryRowContext(ctx, `SELECT id, password_hash FROM users WHERE username = ?`, username).Scan(&id, &hash)
+	err := db.QueryRowContext(ctx, dbstore.SQL(db, `SELECT id, password_hash FROM users WHERE username = ?`), username).Scan(&id, &hash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			_ = bcrypt.CompareHashAndPassword([]byte("$2a$12$AAAAAAAAAAAAAAAAAAAAAA"), []byte(password))
@@ -161,9 +173,9 @@ func CreateUser(ctx context.Context, db *sql.DB, username, password string) erro
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = db.ExecContext(ctx, `
+	_, err = db.ExecContext(ctx, dbstore.SQL(db, `
 INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)
-ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash`, username, string(hash), now)
+ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash`), username, string(hash), now)
 	return err
 }
 
@@ -177,7 +189,7 @@ type User struct {
 
 // ListUsers returns all users ordered by id asc.
 func ListUsers(ctx context.Context, db *sql.DB) ([]User, error) {
-	rows, err := db.QueryContext(ctx, `SELECT id, username, role, created_at FROM users ORDER BY id ASC`)
+	rows, err := db.QueryContext(ctx, dbstore.SQL(db, `SELECT id, username, role, created_at FROM users ORDER BY id ASC`))
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +208,7 @@ func ListUsers(ctx context.Context, db *sql.DB) ([]User, error) {
 // GetUser returns a user by id (sql.ErrNoRows when missing).
 func GetUser(ctx context.Context, db *sql.DB, id int64) (User, error) {
 	var u User
-	err := db.QueryRowContext(ctx, `SELECT id, username, role, created_at FROM users WHERE id = ?`, id).
+	err := db.QueryRowContext(ctx, dbstore.SQL(db, `SELECT id, username, role, created_at FROM users WHERE id = ?`), id).
 		Scan(&u.ID, &u.Username, &u.Role, &u.CreatedAt)
 	return u, err
 }
@@ -207,7 +219,7 @@ func UpdateUserRole(ctx context.Context, db *sql.DB, id int64, role string) erro
 	if role == "" {
 		return errors.New("role is required")
 	}
-	res, err := db.ExecContext(ctx, `UPDATE users SET role = ? WHERE id = ?`, role, id)
+	res, err := db.ExecContext(ctx, dbstore.SQL(db, `UPDATE users SET role = ? WHERE id = ?`), role, id)
 	if err != nil {
 		return err
 	}
@@ -227,7 +239,7 @@ func UpdateUserPassword(ctx context.Context, db *sql.DB, id int64, password stri
 	if err != nil {
 		return err
 	}
-	res, err := db.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, string(hash), id)
+	res, err := db.ExecContext(ctx, dbstore.SQL(db, `UPDATE users SET password_hash = ? WHERE id = ?`), string(hash), id)
 	if err != nil {
 		return err
 	}
@@ -241,7 +253,7 @@ func UpdateUserPassword(ctx context.Context, db *sql.DB, id int64, password stri
 // DeleteUser removes a user row. The caller should prevent deleting the last
 // remaining admin; this helper does not enforce that policy.
 func DeleteUser(ctx context.Context, db *sql.DB, id int64) error {
-	res, err := db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
+	res, err := db.ExecContext(ctx, dbstore.SQL(db, `DELETE FROM users WHERE id = ?`), id)
 	if err != nil {
 		return err
 	}
@@ -262,9 +274,9 @@ func AppendAudit(ctx context.Context, db *sql.DB, userID *int64, username, actio
 	if userID != nil {
 		uid = *userID
 	}
-	_, _ = db.ExecContext(ctx, `
+	_, _ = db.ExecContext(ctx, dbstore.SQL(db, `
 INSERT INTO audit_log (ts, user_id, username, action, target, payload_json)
-VALUES (?, ?, ?, ?, ?, ?)`,
+VALUES (?, ?, ?, ?, ?, ?)`),
 		time.Now().UTC().Format(time.RFC3339Nano), uid, strings.TrimSpace(username),
 		strings.TrimSpace(action), strings.TrimSpace(target), payloadJSON)
 }
@@ -283,7 +295,7 @@ type AuditEntry struct {
 // GetSetting reads a key from kv_settings. Returns ("", nil) when absent.
 func GetSetting(ctx context.Context, db *sql.DB, key string) (string, error) {
 	var v string
-	err := db.QueryRowContext(ctx, `SELECT value FROM kv_settings WHERE key = ?`, key).Scan(&v)
+	err := db.QueryRowContext(ctx, dbstore.SQL(db, `SELECT value FROM kv_settings WHERE key = ?`), key).Scan(&v)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil
@@ -296,8 +308,8 @@ func GetSetting(ctx context.Context, db *sql.DB, key string) (string, error) {
 // PutSetting upserts a value into kv_settings.
 func PutSetting(ctx context.Context, db *sql.DB, key, value string) error {
 	_, err := db.ExecContext(ctx,
-		`INSERT INTO kv_settings(key, value, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+		dbstore.SQL(db, `INSERT INTO kv_settings(key, value, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`),
 		key, value, time.Now().UTC().Format(time.RFC3339Nano),
 	)
 	return err
@@ -308,9 +320,9 @@ func ListAudit(ctx context.Context, db *sql.DB, limit int) ([]AuditEntry, error)
 	if limit <= 0 {
 		limit = 100
 	}
-	rows, err := db.QueryContext(ctx, `
+	rows, err := db.QueryContext(ctx, dbstore.SQL(db, `
 SELECT id, ts, user_id, username, action, target, payload_json FROM audit_log
-ORDER BY id DESC LIMIT ?`, limit)
+ORDER BY id DESC LIMIT ?`), limit)
 	if err != nil {
 		return nil, err
 	}

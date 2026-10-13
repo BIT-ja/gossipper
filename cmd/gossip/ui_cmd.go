@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/dbstore"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,6 +27,8 @@ import (
 func runUICommand(args []string) error {
 	fs := flag.NewFlagSet("ui", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
+	configPath := fs.String("config", "", "path to JSON runtime configuration")
+	checkConfig := fs.Bool("check-config", false, "validate --config and exit without connecting to database")
 	dataDir := fs.String("data-dir", "./data", "data directory for profiles, scenarios, media, jobs")
 	historyKeep := fs.Int("scenario-history-keep", 0, "max archived scenario versions per id (0 = unlimited)")
 	listen := fs.String("listen", ":8080", "HTTP listen address (Control UI + /api/v2)")
@@ -50,6 +53,31 @@ Flags:
 			return nil
 		}
 		return err
+	}
+
+	if *checkConfig && *configPath == "" {
+		return errors.New("--check-config requires --config")
+	}
+	if *configPath != "" {
+		c, err := readUIFileConfig(*configPath)
+		if err != nil {
+			return err
+		}
+		if *checkConfig {
+			fmt.Fprintln(os.Stdout, "UI configuration valid (database connectivity not checked)")
+			return nil
+		}
+		explicit := map[string]bool{}
+		fs.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
+		if !explicit["data-dir"] && c.DataDir != "" {
+			*dataDir = c.DataDir
+		}
+		if !explicit["listen"] && c.HTTP.Listen != "" {
+			*listen = c.HTTP.Listen
+		}
+		if err := c.applyEnvironment(); err != nil {
+			return fmt.Errorf("ui: apply configuration: %w", err)
+		}
 	}
 
 	store, err := uistore.OpenWithOptions(*dataDir, uistore.StoreOptions{
@@ -141,6 +169,9 @@ Flags:
 
 func authLabel(a *settingsauth.Auth) string {
 	if a != nil && a.Enabled() {
+		if dbstore.Enabled() {
+			return "internal(jwt+mysql)"
+		}
 		return "internal(jwt+sqlite)"
 	}
 	return "none"
