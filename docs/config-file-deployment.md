@@ -1,6 +1,6 @@
 # CentOS 7 从源码构建和文件配置
 
-源码包包含预构建 Control UI。CentOS 7 上仅需安装 Go 1.26.1 或兼容的新版本，不需要 Node、npm 或 Docker。程序仍为静态 Linux x86_64 二进制。
+仓库包含预构建 Control UI，拉取 centos7 分支即可使用，无需单独下载页面资源包。CentOS 7 上仅需安装 Go 1.26.1 或兼容的新版本，不需要 Node、npm 或 Docker。程序仍为静态 Linux x86_64 二进制。
 
 ```sh
 go version
@@ -8,7 +8,7 @@ bash scripts/build-server.sh --skip-frontend
 ./dist/gossipper ui --help
 ```
 
-`--skip-frontend` 使用包内已构建页面；修改前端后，应在兼容的构建环境执行不带该参数的构建脚本，再同步源码及页面。直接 git clone 不一定包含页面，缺少 index.html 时脚本会拒绝构建。
+`--skip-frontend` 使用包内已构建页面；修改前端后，应在兼容的构建环境执行不带该参数的构建脚本，再同步源码及页面。修改前端源码后必须重新构建并一起提交 internal/api/webdist；缺少 index.html 时脚本会拒绝构建。
 
 ## 接替已有安装
 
