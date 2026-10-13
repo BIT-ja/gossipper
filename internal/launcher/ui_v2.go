@@ -96,6 +96,7 @@ func openUIBundle(cfg cli.Config) (*UIBundle, error) {
 	}
 	db, err := settingsauth.OpenStore(store.Layout().SettingsDBPath())
 	if err != nil {
+		_ = store.Close()
 		return nil, fmt.Errorf("ui v2: open jobs DB: %w", err)
 	}
 	jobsStore := supervisor.NewJobsStore(db)
@@ -121,7 +122,7 @@ func openUIBundle(cfg cli.Config) (*UIBundle, error) {
 	return &UIBundle{
 		Store:    store,
 		Registry: reg,
-		closer:   func() error { sweepCancel(); return db.Close() },
+		closer:   func() error { sweepCancel(); _ = store.Close(); return db.Close() },
 	}, nil
 }
 

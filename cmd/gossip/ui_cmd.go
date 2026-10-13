@@ -87,6 +87,7 @@ Flags:
 		return fmt.Errorf("ui: open data dir: %w", err)
 	}
 
+	defer store.Close()
 	dbPath := strings.TrimSpace(*authSqlite)
 	if dbPath == "" {
 		dbPath = store.Layout().SettingsDBPath()

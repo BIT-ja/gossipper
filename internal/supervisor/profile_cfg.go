@@ -30,6 +30,7 @@ func BuildConfigFromSpec(spec Spec) (cli.Config, func(), error) {
 	if err != nil {
 		return cli.Config{}, func() {}, err
 	}
+	defer store.Close()
 	scenarioID := strings.TrimSpace(spec.ScenarioID)
 
 	cfg := cli.DefaultConfig()

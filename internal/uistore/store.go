@@ -1,9 +1,11 @@
 package uistore
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sipcapture/gossipper/internal/dbstore"
 	"io"
 	"os"
 	"path/filepath"
@@ -38,6 +40,7 @@ type StoreOptions struct {
 
 // Store wraps a Layout with concurrency-safe CRUD helpers.
 type Store struct {
+	db                  *sql.DB
 	mu                  sync.RWMutex
 	layout              Layout
 	now                 func() time.Time
@@ -63,11 +66,17 @@ func OpenWithOptions(root string, opt StoreOptions) (*Store, error) {
 	if keep < 0 {
 		keep = 0
 	}
-	return &Store{
+	s := &Store{
 		layout:              l,
 		now:                 func() time.Time { return time.Now().UTC() },
 		scenarioHistoryKeep: keep,
-	}, nil
+	}
+	if dbstore.Enabled() {
+		if err := s.openMySQL(); err != nil {
+			return nil, err
+		}
+	}
+	return s, nil
 }
 
 // Layout exposes the underlying directory layout (read only).
@@ -169,6 +178,9 @@ func (s *Store) serverPath(id string) string {
 
 // ListServerProfiles returns server profiles sorted by id.
 func (s *Store) ListServerProfiles() ([]ServerProfile, error) {
+	if s.db != nil {
+		return mysqlList[ServerProfile](s, "server")
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return listJSON[ServerProfile](s.layout.ServersDir())
@@ -176,6 +188,9 @@ func (s *Store) ListServerProfiles() ([]ServerProfile, error) {
 
 // GetServerProfile fetches a server profile by id.
 func (s *Store) GetServerProfile(id string) (ServerProfile, error) {
+	if s.db != nil {
+		return mysqlGet[ServerProfile](s, "server", id, "")
+	}
 	if !isSafeID(id) {
 		return ServerProfile{}, ErrInvalidID
 	}
@@ -191,6 +206,10 @@ func (s *Store) GetServerProfile(id string) (ServerProfile, error) {
 // PutServerProfile creates or updates a server profile.
 // When create=true the function fails with ErrConflict if the id exists.
 func (s *Store) PutServerProfile(p ServerProfile, create bool) (ServerProfile, error) {
+	if s.db != nil {
+		err := s.mysqlPutProfile("server", p.ID, &p.Name, &p.CreatedAt, &p.UpdatedAt, &p, create)
+		return p, err
+	}
 	if !isSafeID(p.ID) {
 		return ServerProfile{}, ErrInvalidID
 	}
@@ -230,6 +249,9 @@ func (s *Store) PutServerProfile(p ServerProfile, create bool) (ServerProfile, e
 
 // DeleteServerProfile removes a server profile by id.
 func (s *Store) DeleteServerProfile(id string) error {
+	if s.db != nil {
+		return s.mysqlDelete("server", id, "")
+	}
 	if !isSafeID(id) {
 		return ErrInvalidID
 	}
@@ -252,6 +274,9 @@ func (s *Store) clientPath(id string) string {
 
 // ListClientProfiles returns client profiles sorted by id.
 func (s *Store) ListClientProfiles() ([]ClientProfile, error) {
+	if s.db != nil {
+		return mysqlList[ClientProfile](s, "client")
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return listJSON[ClientProfile](s.layout.ClientsDir())
@@ -259,6 +284,9 @@ func (s *Store) ListClientProfiles() ([]ClientProfile, error) {
 
 // GetClientProfile fetches a client profile by id.
 func (s *Store) GetClientProfile(id string) (ClientProfile, error) {
+	if s.db != nil {
+		return mysqlGet[ClientProfile](s, "client", id, "")
+	}
 	if !isSafeID(id) {
 		return ClientProfile{}, ErrInvalidID
 	}
@@ -273,6 +301,10 @@ func (s *Store) GetClientProfile(id string) (ClientProfile, error) {
 
 // PutClientProfile creates or updates a client profile.
 func (s *Store) PutClientProfile(p ClientProfile, create bool) (ClientProfile, error) {
+	if s.db != nil {
+		err := s.mysqlPutProfile("client", p.ID, &p.Name, &p.CreatedAt, &p.UpdatedAt, &p, create)
+		return p, err
+	}
 	if !isSafeID(p.ID) {
 		return ClientProfile{}, ErrInvalidID
 	}
@@ -312,6 +344,9 @@ func (s *Store) PutClientProfile(p ClientProfile, create bool) (ClientProfile, e
 
 // DeleteClientProfile removes a client profile by id.
 func (s *Store) DeleteClientProfile(id string) error {
+	if s.db != nil {
+		return s.mysqlDelete("client", id, "")
+	}
 	if !isSafeID(id) {
 		return ErrInvalidID
 	}
@@ -339,6 +374,14 @@ func (s *Store) scenarioMetaPath(id string) string {
 // ListScenarios returns scenario metadata for every *.meta.json found.
 // Scenarios without a sidecar are reported with synthesised meta.
 func (s *Store) ListScenarios() ([]ScenarioMeta, error) {
+	if s.db != nil {
+		bodies, err := mysqlList[ScenarioBody](s, "scenario")
+		out := make([]ScenarioMeta, 0, len(bodies))
+		for _, b := range bodies {
+			out = append(out, b.Meta)
+		}
+		return out, err
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	dir := s.layout.ScenariosDir()
@@ -423,6 +466,9 @@ type ScenarioBody struct {
 
 // GetScenario returns XML body + meta for an id.
 func (s *Store) GetScenario(id string) (ScenarioBody, error) {
+	if s.db != nil {
+		return mysqlGet[ScenarioBody](s, "scenario", id, "")
+	}
 	if !isSafeID(id) {
 		return ScenarioBody{}, ErrInvalidID
 	}
@@ -459,6 +505,9 @@ func (s *Store) GetScenario(id string) (ScenarioBody, error) {
 // new content lands. Snapshots are skipped when the new XML is byte-identical
 // to the on-disk copy (treats sidecar-only edits as non-versioned).
 func (s *Store) PutScenario(meta ScenarioMeta, xml string, create bool) (ScenarioBody, error) {
+	if s.db != nil {
+		return s.mysqlPutScenario(meta, xml, create)
+	}
 	if !isSafeID(meta.ID) {
 		return ScenarioBody{}, ErrInvalidID
 	}
@@ -515,6 +564,9 @@ func (s *Store) PutScenario(meta ScenarioMeta, xml string, create bool) (Scenari
 
 // DeleteScenario removes both XML, sidecar, and the entire history dir.
 func (s *Store) DeleteScenario(id string) error {
+	if s.db != nil {
+		return s.mysqlDelete("scenario", id, "")
+	}
 	if !isSafeID(id) {
 		return ErrInvalidID
 	}
@@ -682,6 +734,9 @@ func listScenarioHistoryEntriesFromDir(dir string) ([]ScenarioHistoryEntry, erro
 // ListScenarioHistory returns archived prior versions of a scenario, newest
 // first. Missing history directory (no updates yet) returns an empty slice.
 func (s *Store) ListScenarioHistory(id string) ([]ScenarioHistoryEntry, error) {
+	if s.db != nil {
+		return s.mysqlHistory(id)
+	}
 	if !isSafeID(id) {
 		return nil, ErrInvalidID
 	}
@@ -740,6 +795,9 @@ func (s *Store) ForkScenarioFromHistory(sourceID, ts string, meta ScenarioMeta) 
 // DeleteScenarioHistory removes a single archived snapshot (xml + sidecar).
 // Returns ErrNotFound when the snapshot does not exist.
 func (s *Store) DeleteScenarioHistory(id, ts string) error {
+	if s.db != nil {
+		return s.mysqlDelete("history", id, ts)
+	}
 	if !isSafeID(id) {
 		return ErrInvalidID
 	}
@@ -768,6 +826,9 @@ func (s *Store) DeleteScenarioHistory(id, ts string) error {
 
 // GetScenarioHistory returns the archived XML+meta for a specific snapshot.
 func (s *Store) GetScenarioHistory(id, ts string) (ScenarioBody, error) {
+	if s.db != nil {
+		return mysqlGet[ScenarioBody](s, "history", id, ts)
+	}
 	if !isSafeID(id) {
 		return ScenarioBody{}, ErrInvalidID
 	}
