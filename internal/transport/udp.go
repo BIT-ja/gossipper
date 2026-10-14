@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"runtime"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -64,6 +66,7 @@ type SharedUDP struct {
 	incomingOnce  sync.Once
 	closed        atomic.Bool
 	receiverCount int
+	receivers     sync.WaitGroup
 	sendIdx       atomic.Uint64 // round-robin index for send distribution
 }
 
@@ -94,9 +97,20 @@ func NewSharedUDPWithReceivers(localAddr string, receivers int, observer ...SIPO
 	if len(observer) > 0 {
 		s.observer = observer[0]
 	}
+	s.receivers.Add(len(conns))
 	for _, c := range conns {
-		go s.readLoop(c)
+		go func(conn *net.UDPConn) {
+			defer s.receivers.Done()
+			defer conn.Close()
+			s.readLoop(conn)
+		}(c)
 	}
+	// Only the last receiver can close ingress. A single SO_REUSEPORT worker
+	// must never close a channel that the other workers are still writing to.
+	go func() {
+		s.receivers.Wait()
+		s.shutdownIncoming()
+	}()
 	return s, nil
 }
 
@@ -159,14 +173,38 @@ func tuneUDPConn(c *net.UDPConn) {
 }
 
 func (s *SharedUDP) readLoop(conn *net.UDPConn) {
+	var retryDelay time.Duration
 	for {
 		buffer := udpBufPool.Get().([]byte)
 		n, addr, err := conn.ReadFromUDP(buffer)
 		if err != nil {
 			udpBufPool.Put(buffer)
-			s.shutdownIncoming()
-			return
+			if s.closed.Load() || errors.Is(err, net.ErrClosed) {
+				return
+			}
+			if !retryableUDPReadError(err) {
+				fmt.Fprintf(os.Stderr, "gossipper UDP receiver stopped local=%s: %v\n", conn.LocalAddr(), err)
+				return
+			}
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
+				// Shared sockets have no per-call deadline. An expired socket
+				// deadline would otherwise make every subsequent read fail.
+				_ = conn.SetReadDeadline(time.Time{})
+			}
+			// UDP can surface asynchronous ICMP errors on a later read. These
+			// belong to a datagram, not to the lifetime of the SIP listener.
+			// Bound retries to avoid spinning on repeated network errors.
+			if retryDelay == 0 {
+				fmt.Fprintf(os.Stderr, "gossipper UDP receive error; retrying local=%s: %v\n", conn.LocalAddr(), err)
+				retryDelay = time.Millisecond
+			} else if retryDelay < 100*time.Millisecond {
+				retryDelay = min(2*retryDelay, 100*time.Millisecond)
+			}
+			time.Sleep(retryDelay)
+			continue
 		}
+		retryDelay = 0
 		if n <= 0 || n > maxUDPSIPDatagram {
 			udpBufPool.Put(buffer)
 			continue
@@ -189,6 +227,19 @@ func (s *SharedUDP) readLoop(conn *net.UDPConn) {
 			}
 		}
 	}
+}
+
+func retryableUDPReadError(err error) bool {
+	if errors.Is(err, net.ErrClosed) {
+		return false
+	}
+	var ne net.Error
+	if errors.As(err, &ne) && (ne.Timeout() || ne.Temporary()) {
+		return true
+	}
+	return errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.EINTR) || errors.Is(err, syscall.ENOBUFS) ||
+		errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH)
 }
 
 func (s *SharedUDP) shutdownIncoming() {
@@ -240,6 +291,7 @@ func (s *SharedUDP) Close() error {
 				err = e
 			}
 		}
+		s.receivers.Wait()
 		s.shutdownIncoming()
 	})
 	return err
