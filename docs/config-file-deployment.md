@@ -58,3 +58,17 @@ curl -fsS http://127.0.0.1:8080/healthz
 服务器 10.80.16.64 之前到 10.90.0.110:3306 TCP 超时。配置文件应填写该服务器实际可达的数据库地址和端口；更换配置读取方式不会自动打通路由或安全组。不要靠移除 MySQL 配置绕过此问题，否则会切到另一套本地数据。
 
 启用 MySQL 后，页面内客户端/服务端配置及场景/历史也保存在数据库；旧目录首次启动自动迁入，详细规则见 [MySQL 存储](mysql.md#场景和配置入库升级)。运行配置 gossipper.json 仍为启动所需的本地文件。
+
+## 一键更新、编译和重启
+
+已按上文配置好 systemd 服务后，在服务器仓库目录以 root 执行：
+
+```sh
+bash scripts/build-server.sh --deploy --skip-frontend
+```
+
+脚本按当前分支的 upstream 执行 `git pull --ff-only`，因此 centos7 分支需跟踪 origin/centos7；不会切换分支、重置本地修改或强制覆盖。工作区存在修改或未跟踪文件时拒绝部署，首次拉取新版脚本可先执行 `git pull --ff-only origin centos7`。自动寻找 PATH、/opt/go1.26.1/bin、/usr/local/go/bin 中的 Go，预构建页面无需 Node。
+
+先结束运行和等待任务再部署。拉取、构建、配置检查全部通过后才停止旧服务。旧二进制和启动配置备份至 /var/backups/gossipper-deploy-*，新二进制替换后启动服务并检查配置端口的 /healthz。失败返回非零并打印日志，备份保留；这不是数据库或整个数据目录的备份，也不自动回滚数据库迁移。
+
+服务单元必须使用 `--config /etc/gossipper/gossipper.json`。脚本保留现有服务单元、数据库连接和 data_dir；首次使用包含配置入库功能的版本启动时，仍从原目录自动迁移场景和客户端配置。无需 --deploy 时保留原来的仅编译行为。
